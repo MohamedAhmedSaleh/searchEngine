@@ -21,6 +21,7 @@ namespace IR
         private List<String> toVisit;
         private List<String> visited;//urls
         private List<String> content;//htmlcontent
+        int numberOfDocuments;
         string connectionString = "Data source=orcl; User Id=scott; Password=tiger;";
         OracleConnection conn;
 
@@ -30,13 +31,14 @@ namespace IR
             toVisit = new List<string>();
             visited = new List<string>();
             content = new List<string>();
+            numberOfDocuments = 3000;
             toVisit.Add("http://www.google.com");
-            
+
         }
 
         private void crawl_Click(object sender, EventArgs e)
         {
-            Thread newthread=new Thread(new ThreadStart(crawler));
+            Thread newthread = new Thread(new ThreadStart(crawler));
             newthread.IsBackground = true;
             newthread.Start();
         }
@@ -44,8 +46,17 @@ namespace IR
         private void crawler()
         {
             int i = 0;
-            while (visited.Count != 3000)
+
+            while (visited.Count != numberOfDocuments)
             {
+                if (visitedCount.InvokeRequired)
+                    visitedCount.Invoke(new MethodInvoker(delegate
+                    {
+                        visitedCount.Text = "Visited Pages: " + visited.Count;
+                    }));
+                else
+                    visitedCount.Text = "Visited Pages: " + visited.Count;
+
                 if (toVisit.Count != 0)
                 {
                     content.Add(HTTPRequest(toVisit[i]));
@@ -79,7 +90,6 @@ namespace IR
 
         public string HTTPRequest(String URL)
         {
-
             WebRequest myWebRequest;
             WebResponse myWebResponse;
 
@@ -131,15 +141,10 @@ namespace IR
                     if (string.IsNullOrEmpty(url) || url.StartsWith("#")
                         || url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase)
                         || url.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase))
-                    {
                         continue;
-                    }
 
                     if (url.Contains("http://") || url.Contains("https://"))
-                    {
                         toVisit.Add(url);
-                    }
-
                 }
             }
         }
@@ -151,14 +156,14 @@ namespace IR
             int count = 0;
             OracleCommand cmd;
 
-            while (count < 3000)
+            while (count < visited.Count)
             {
                 cmd = new OracleCommand();
                 cmd.Connection = conn;
                 cmd.CommandText = "INSERT_NEW_CRAWLER_RESULT";
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.Parameters.Add("page_url", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = visited[count];
-                cmd.Parameters.Add("page_content", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = content[count].Substring(0,4000);
+                cmd.Parameters.Add("page_content", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = content[count].Substring(0, 4000);
                 cmd.ExecuteNonQuery();
                 count++;
             }
@@ -171,6 +176,3 @@ namespace IR
         }
     }
 }
-
-
-
