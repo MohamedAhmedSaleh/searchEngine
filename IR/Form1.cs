@@ -32,7 +32,10 @@ namespace IR
             visited = new List<string>();
             content = new List<string>();
             numberOfDocuments = 3000;
-            toVisit.Add("http://www.google.com");
+            toVisit.Add("https://www.google.com");
+            toVisit.Add("https://en.wikipedia.org/wiki/Main_Page");
+            ServicePointManager.Expect100Continue = true;
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
         }
 
@@ -49,6 +52,35 @@ namespace IR
 
             while (visited.Count != numberOfDocuments)
             {
+
+                if (toVisit.Count != 0)
+                {
+                    if (!visited.Contains(toVisit[i]))
+                    {
+                        string temp = HTTPRequest(toVisit[i]);
+                        if (!temp.Equals(""))
+                        {
+                            content.Add(temp);
+                            visited.Add(toVisit[i]);
+
+                            string[] row = { "", toVisit[i], content[i] };
+                            ListViewItem lvi = new ListViewItem(row);
+
+                            if (listView1.InvokeRequired)
+                                listView1.Invoke(new MethodInvoker(delegate
+                                {
+                                    listView1.Items.Add(lvi);
+                                }));
+                            else
+                                listView1.Items.Add(lvi);
+
+                            searchForLinks(content[i]);
+                            i++;
+                        }
+                    }
+                    toVisit.RemoveAt(i);
+
+                }
                 if (visitedCount.InvokeRequired)
                     visitedCount.Invoke(new MethodInvoker(delegate
                     {
@@ -57,32 +89,6 @@ namespace IR
                 else
                     visitedCount.Text = "Visited Pages: " + visited.Count;
 
-                if (toVisit.Count != 0)
-                {
-                    content.Add(HTTPRequest(toVisit[i]));
-                    visited.Add(toVisit[i]);
-                    if (listView1.InvokeRequired)
-                        listView1.Invoke(new MethodInvoker(delegate
-                        {
-                            listView1.Items.Add(new ListViewItem(toVisit[i]));
-                        }));
-                    else
-                        listView1.Items.Add(new ListViewItem(toVisit[i]));
-
-
-                    if (listView2.InvokeRequired)
-                        listView2.Invoke(new MethodInvoker(delegate
-                        {
-                            listView2.Items.Add(new ListViewItem(content[i]));
-                        }));
-                    else
-                        listView2.Items.Add(new ListViewItem(content[i]));
-
-                    toVisit.RemoveAt(i);
-                    searchForLinks(content[i]);
-
-                    i++;
-                }
             }
             addCrawlerResultsToDatabase();
 
@@ -94,57 +100,71 @@ namespace IR
             WebResponse myWebResponse;
 
             // Create a new 'WebRequest' object to the mentioned URL.
-            myWebRequest = WebRequest.Create(URL);
+            Uri uri;
+            if (!Uri.TryCreate(URL, UriKind.Absolute, out uri))
+                return "";
+            string rString;
+            try
+            {
+                myWebRequest = WebRequest.Create(URL);
 
-            // The response object of 'WebRequest' is assigned to a WebResponse' variable.
-            myWebResponse = myWebRequest.GetResponse();
+                // The response object of 'WebRequest' is assigned to a WebResponse' variable.
+                myWebResponse = myWebRequest.GetResponse();
 
-            Stream streamResponse = myWebResponse.GetResponseStream();
-            StreamReader sReader = new StreamReader(streamResponse);
-            string rString = sReader.ReadToEnd();
+                Stream streamResponse = myWebResponse.GetResponseStream();
+                StreamReader reader = new StreamReader(streamResponse);
+                rString = reader.ReadToEnd();
 
-            streamResponse.Close();
-            sReader.Close();
-            myWebResponse.Close();
+
+                streamResponse.Close();
+                reader.Close();
+                myWebResponse.Close();
+            }
+            catch (Exception ex)
+            {
+                return "";
+            }
             return rString;
 
         }
         public void searchForLinks(String content)
         {
-            var urlDictionary = new Dictionary<string, string>();
-
-            Match match = Regex.Match(content, "(?i)<a .*?href=\"([^\"]+)\"[^>]*>(.*?)</a>");
-            while (match.Success)
+            if (toVisit.Count < numberOfDocuments+500)
             {
+                var urlDictionary = new Dictionary<string, string>();
 
-                string urlKey = match.Groups[1].Value;
-
-
-                string urlValue = Regex.Replace(match.Groups[2].Value, "(?i)<.*?>", string.Empty);
-
-                urlDictionary[urlKey] = urlValue;
-                match = match.NextMatch();
-            }
-
-            foreach (var item in urlDictionary)
-            {
-                string href = item.Key;
-                string text = item.Value;
-
-                if (!string.IsNullOrEmpty(href))
+                Match match = Regex.Match(content, "(?i)<a .*?href=\"([^\"]+)\"[^>]*>(.*?)</a>");
+                while (match.Success)
                 {
-                    string url = href.Replace("%3f", "?")
-                        .Replace("%3d", "=")
-                        .Replace("%2f", "/")
-                        .Replace("&amp;", "&");
 
-                    if (string.IsNullOrEmpty(url) || url.StartsWith("#")
-                        || url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase)
-                        || url.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase))
-                        continue;
+                    string urlKey = match.Groups[1].Value;
 
-                    if (url.Contains("http://") || url.Contains("https://"))
-                        toVisit.Add(url);
+
+                    string urlValue = Regex.Replace(match.Groups[2].Value, "(?i)<.*?>", string.Empty);
+                    urlDictionary[urlKey] = urlValue;
+                    match = match.NextMatch();
+                }
+
+                foreach (var item in urlDictionary)
+                {
+                    string href = item.Key;
+                    string text = item.Value;
+
+                    if (!string.IsNullOrEmpty(href))
+                    {
+                        string url = href.Replace("%3f", "?")
+                            .Replace("%3d", "=")
+                            .Replace("%2f", "/")
+                            .Replace("&amp;", "&");
+
+                        if (string.IsNullOrEmpty(url) || url.StartsWith("#")
+                            || url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase)
+                            || url.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        if ((url.Contains("http://") || url.Contains("https://")) && (!toVisit.Contains(url)))
+                            toVisit.Add(url);
+                    }
                 }
             }
         }
@@ -163,7 +183,7 @@ namespace IR
                 cmd.CommandText = "INSERT_NEW_CRAWLER_RESULT";
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.Parameters.Add("page_url", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = visited[count];
-                cmd.Parameters.Add("page_content", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = content[count].Substring(0, 4000);
+                cmd.Parameters.Add("page_content", OracleDbType.NClob, DBNull.Value, ParameterDirection.Input).Value = content[count];
                 cmd.ExecuteNonQuery();
                 count++;
             }

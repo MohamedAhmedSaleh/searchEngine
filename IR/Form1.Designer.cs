@@ -30,8 +30,10 @@
         {
             this.crawl = new System.Windows.Forms.Button();
             this.listView1 = new System.Windows.Forms.ListView();
-            this.listView2 = new System.Windows.Forms.ListView();
+            this.column = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.URL = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.visitedCount = new System.Windows.Forms.Label();
+            this.URLContent = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.SuspendLayout();
             // 
             // crawl
@@ -46,21 +48,27 @@
             // 
             // listView1
             // 
+            this.listView1.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.column,
+            this.URL,
+            this.URLContent});
             this.listView1.Location = new System.Drawing.Point(12, 41);
             this.listView1.Name = "listView1";
-            this.listView1.Size = new System.Drawing.Size(347, 482);
+            this.listView1.Size = new System.Drawing.Size(1219, 482);
             this.listView1.TabIndex = 1;
             this.listView1.UseCompatibleStateImageBehavior = false;
-            this.listView1.View = System.Windows.Forms.View.List;
+            this.listView1.View = System.Windows.Forms.View.Details;
             // 
-            // listView2
+            // column
             // 
-            this.listView2.Location = new System.Drawing.Point(365, 41);
-            this.listView2.Name = "listView2";
-            this.listView2.Size = new System.Drawing.Size(866, 482);
-            this.listView2.TabIndex = 2;
-            this.listView2.UseCompatibleStateImageBehavior = false;
-            this.listView2.View = System.Windows.Forms.View.List;
+            this.column.Text = "column";
+            this.column.Width = 0;
+            // 
+            // URL
+            // 
+            this.URL.Text = "URL";
+            this.URL.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.URL.Width = 340;
             // 
             // visitedCount
             // 
@@ -71,13 +79,18 @@
             this.visitedCount.Size = new System.Drawing.Size(0, 16);
             this.visitedCount.TabIndex = 3;
             // 
+            // URLContent
+            // 
+            this.URLContent.Text = "Content";
+            this.URLContent.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.URLContent.Width = 850;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1243, 535);
             this.Controls.Add(this.visitedCount);
-            this.Controls.Add(this.listView2);
             this.Controls.Add(this.listView1);
             this.Controls.Add(this.crawl);
             this.Name = "Form1";
@@ -92,8 +105,10 @@
 
         private System.Windows.Forms.Button crawl;
         private System.Windows.Forms.ListView listView1;
-        private System.Windows.Forms.ListView listView2;
         private System.Windows.Forms.Label visitedCount;
+        private System.Windows.Forms.ColumnHeader column;
+        private System.Windows.Forms.ColumnHeader URL;
+        private System.Windows.Forms.ColumnHeader URLContent;
     }
 }
 
