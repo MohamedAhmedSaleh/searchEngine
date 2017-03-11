@@ -32,8 +32,9 @@
             this.listView1 = new System.Windows.Forms.ListView();
             this.column = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.URL = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.visitedCount = new System.Windows.Forms.Label();
             this.URLContent = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.visitedCount = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // crawl
@@ -51,7 +52,8 @@
             this.listView1.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.column,
             this.URL,
-            this.URLContent});
+            this.URLContent,
+            this.columnHeader1});
             this.listView1.Location = new System.Drawing.Point(12, 41);
             this.listView1.Name = "listView1";
             this.listView1.Size = new System.Drawing.Size(1219, 482);
@@ -70,6 +72,17 @@
             this.URL.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             this.URL.Width = 340;
             // 
+            // URLContent
+            // 
+            this.URLContent.Text = "Html Content";
+            this.URLContent.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            this.URLContent.Width = 300;
+            // 
+            // columnHeader1
+            // 
+            this.columnHeader1.Text = "Content";
+            this.columnHeader1.Width = 400;
+            // 
             // visitedCount
             // 
             this.visitedCount.AutoSize = true;
@@ -78,12 +91,6 @@
             this.visitedCount.Name = "visitedCount";
             this.visitedCount.Size = new System.Drawing.Size(0, 16);
             this.visitedCount.TabIndex = 3;
-            // 
-            // URLContent
-            // 
-            this.URLContent.Text = "Content";
-            this.URLContent.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            this.URLContent.Width = 850;
             // 
             // Form1
             // 
@@ -109,6 +116,7 @@
         private System.Windows.Forms.ColumnHeader column;
         private System.Windows.Forms.ColumnHeader URL;
         private System.Windows.Forms.ColumnHeader URLContent;
+        private System.Windows.Forms.ColumnHeader columnHeader1;
     }
 }
 

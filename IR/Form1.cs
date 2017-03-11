@@ -21,19 +21,22 @@ namespace IR
         private List<String> toVisit;
         private List<String> visited;//urls
         private List<String> content;//htmlcontent
+        private List<String> specificContent; // specificContentFromhtml
+        HtmlToText htmltotext;
         int numberOfDocuments;
         string connectionString = "Data source=orcl; User Id=scott; Password=tiger;";
         OracleConnection conn;
-
         public Form1()
         {
             InitializeComponent();
             toVisit = new List<string>();
             visited = new List<string>();
             content = new List<string>();
+            specificContent = new List<string>();
+            htmltotext = new HtmlToText();
             numberOfDocuments = 3000;
-            toVisit.Add("https://www.google.com");
             toVisit.Add("https://en.wikipedia.org/wiki/Main_Page");
+            toVisit.Add("https://www.google.com");
             ServicePointManager.Expect100Continue = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
@@ -62,8 +65,9 @@ namespace IR
                         {
                             content.Add(temp);
                             visited.Add(toVisit[i]);
+                            GetSpecificContent(content[i]);
 
-                            string[] row = { "", toVisit[i], content[i] };
+                            string[] row = { "", toVisit[i], content[i], specificContent[i] };
                             ListViewItem lvi = new ListViewItem(row);
 
                             if (listView1.InvokeRequired)
@@ -77,6 +81,7 @@ namespace IR
                             searchForLinks(content[i]);
                             i++;
                         }
+
                     }
                     toVisit.RemoveAt(i);
 
@@ -115,7 +120,6 @@ namespace IR
                 StreamReader reader = new StreamReader(streamResponse);
                 rString = reader.ReadToEnd();
 
-
                 streamResponse.Close();
                 reader.Close();
                 myWebResponse.Close();
@@ -129,17 +133,14 @@ namespace IR
         }
         public void searchForLinks(String content)
         {
-            if (toVisit.Count < numberOfDocuments+500)
+            if (toVisit.Count < numberOfDocuments + 500)
             {
                 var urlDictionary = new Dictionary<string, string>();
 
                 Match match = Regex.Match(content, "(?i)<a .*?href=\"([^\"]+)\"[^>]*>(.*?)</a>");
                 while (match.Success)
                 {
-
                     string urlKey = match.Groups[1].Value;
-
-
                     string urlValue = Regex.Replace(match.Groups[2].Value, "(?i)<.*?>", string.Empty);
                     urlDictionary[urlKey] = urlValue;
                     match = match.NextMatch();
@@ -149,7 +150,6 @@ namespace IR
                 {
                     string href = item.Key;
                     string text = item.Value;
-
                     if (!string.IsNullOrEmpty(href))
                     {
                         string url = href.Replace("%3f", "?")
@@ -169,6 +169,10 @@ namespace IR
             }
         }
 
+        private void GetSpecificContent(string htmlContent)
+        {
+            specificContent.Add(htmltotext.ConvertHtml(htmlContent));
+        }
         private void addCrawlerResultsToDatabase()
         {
             conn = new OracleConnection(connectionString);
@@ -184,12 +188,11 @@ namespace IR
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.Parameters.Add("page_url", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = visited[count];
                 cmd.Parameters.Add("page_content", OracleDbType.NClob, DBNull.Value, ParameterDirection.Input).Value = content[count];
+                cmd.Parameters.Add("page_specific_content", OracleDbType.NClob, DBNull.Value, ParameterDirection.Input).Value = specificContent[count];
                 cmd.ExecuteNonQuery();
                 count++;
             }
-
         }
-
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
             Application.Exit();
