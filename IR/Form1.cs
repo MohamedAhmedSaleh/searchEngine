@@ -26,7 +26,8 @@ namespace IR
         int numberOfDocuments;
         string connectionString = "Data source=orcl; User Id=scott; Password=tiger;";
         OracleConnection conn;
-        List<String> seeds;
+        List<Thread> threads;
+
         public Form1()
         {
             InitializeComponent();
@@ -38,61 +39,31 @@ namespace IR
             numberOfDocuments = 3000;
             ServicePointManager.Expect100Continue = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-            seeds = new List<string>();
-            seeds.Add("https://en.wikipedia.org/wiki/Main_Page");
-            seeds.Add("https://www.google.com");
+            toVisit.Enqueue("https://en.wikipedia.org/wiki/Main_Page");
+            toVisit.Enqueue("https://www.google.com");
         }
 
         private void crawl_Click(object sender, EventArgs e)
         {
-            Parallel.For(0, 2, index =>
+            threads = new List<Thread>();
+            int numberOfThreads = 100;
+            for (int i = 0; i < numberOfThreads; i++)
             {
-                Task firstTask = Task.Factory.StartNew(() => crawler(seeds[index]));
-            });
+                Thread newthread = new Thread(new ThreadStart(crawler));
+                newthread.IsBackground = true;
+                threads.Add(newthread);
+                newthread.Start();
+            }
+            Thread thread = new Thread(new ThreadStart(handleThreads));
+            thread.IsBackground = true;
+            thread.Start();
 
         }
 
-        private void crawler(Object seed)
+        private void handleThreads()
         {
-            toVisit.Enqueue((String)seed);
-            
-
-            while (visited.Count != numberOfDocuments)
+            while (threads.Count != 0)
             {
-
-                if (toVisit.Count != 0)
-                {
-                    String strToVisit = toVisit.Dequeue();
-
-                    if (!visited.Contains(strToVisit))//to prevent duplicate
-                    {
-                        string temp = HTTPRequest(strToVisit);//call function to get html
-
-                        if (!temp.Equals(""))
-                        {
-                            content.Enqueue(temp);
-                            visited.Enqueue(strToVisit);
-                            String strContent = content.Dequeue();
-                            GetSpecificContent(strContent);
-                            String strSpecieficContent = specificContent.Dequeue();
-                            string[] row = { "", strToVisit, strContent, strSpecieficContent };//
-                            ListViewItem lvi = new ListViewItem(row);//
-
-                            if (listView1.InvokeRequired) // We had to do this because we can't access UI objects from a thread
-                                listView1.Invoke(new MethodInvoker(delegate
-                                {
-                                    listView1.Items.Add(lvi);
-                                }));
-                            else
-                                listView1.Items.Add(lvi);
-
-                            searchForLinks(strContent);
-                            
-                        }
-
-                    }
-
-                }
                 if (visitedCount.InvokeRequired)
                     visitedCount.Invoke(new MethodInvoker(delegate
                     {
@@ -101,8 +72,62 @@ namespace IR
                 else
                     visitedCount.Text = "Visited Pages: " + visited.Count;
 
+                for (int i = 0; i < threads.Count; i++)
+                    if (!threads[i].IsAlive)
+                        threads.Remove(threads[i]);
             }
+
             addCrawlerResultsToDatabase();
+        }
+
+        private void crawler()
+        {
+
+            while (visited.Count != numberOfDocuments)
+            {
+
+                if (toVisit.Count != 0)
+                {
+                    try
+                    {
+                        String strToVisit = toVisit.Dequeue();
+                        if (!visited.Contains(strToVisit))//to prevent duplicate
+                        {
+                            string temp = HTTPRequest(strToVisit);//call function to get html
+
+                            if (!temp.Equals(""))
+                            {
+                                content.Enqueue(temp);
+                                visited.Enqueue(strToVisit);
+                                String strContent = content.Dequeue();
+                                GetSpecificContent(strContent);
+                                String strSpecieficContent = specificContent.Dequeue();
+                                //string[] row = { "", strToVisit, strContent, strSpecieficContent };//
+                                //ListViewItem lvi = new ListViewItem(row);//
+
+                                //if (listView1.InvokeRequired) // We had to do this because we can't access UI objects from a thread
+                                //    listView1.Invoke(new MethodInvoker(delegate
+                                //    {
+                                //        listView1.Items.Add(lvi);
+                                //    }));
+                                //else
+                                //    listView1.Items.Add(lvi);
+                                searchForLinks(strContent);
+
+                            }
+
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+
+                    }
+
+
+                }
+
+
+            }
 
         }
 
@@ -140,7 +165,7 @@ namespace IR
         }
         public void searchForLinks(String content)
         {
-            if (toVisit.Count < numberOfDocuments + 500)
+            if (toVisit.Count < numberOfDocuments - visited.Count + 500)
             {
                 var urlDictionary = new Dictionary<string, string>();
 
