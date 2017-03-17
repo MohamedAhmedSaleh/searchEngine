@@ -18,59 +18,67 @@ namespace IR
 {
     public partial class Form1 : Form
     {
-        private List<String> toVisit;
-        private List<String> visited;//urls
-        private List<String> content;//htmlcontent
-        private List<String> specificContent; // specificContentFromhtml
+        private Queue<String> toVisit;//
+        private Queue<String> visited;//urls//
+        private Queue<String> content;//htmlcontent
+        private Queue<String> specificContent; // specificContentFromhtml
         HtmlToText htmltotext;
         int numberOfDocuments;
         string connectionString = "Data source=orcl; User Id=scott; Password=tiger;";
         OracleConnection conn;
+        List<String> seeds;
         public Form1()
         {
             InitializeComponent();
-            toVisit = new List<string>();
-            visited = new List<string>();
-            content = new List<string>();
-            specificContent = new List<string>();
+            toVisit = new Queue<string>();
+            visited = new Queue<string>();
+            content = new Queue<string>();
+            specificContent = new Queue<string>();
             htmltotext = new HtmlToText();
             numberOfDocuments = 3000;
-            toVisit.Add("https://en.wikipedia.org/wiki/Main_Page");
-            toVisit.Add("https://www.google.com");
             ServicePointManager.Expect100Continue = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-
+            seeds = new List<string>();
+            seeds.Add("https://en.wikipedia.org/wiki/Main_Page");
+            seeds.Add("https://www.google.com");
         }
 
         private void crawl_Click(object sender, EventArgs e)
         {
-            Thread newthread = new Thread(new ThreadStart(crawler));
-            newthread.IsBackground = true;
-            newthread.Start();
+            Parallel.For(0, 2, index =>
+            {
+                Task firstTask = Task.Factory.StartNew(() => crawler(seeds[index]));
+            });
+
         }
 
-        private void crawler()
+        private void crawler(Object seed)
         {
-            int i = 0;
+            toVisit.Enqueue((String)seed);
+            
 
             while (visited.Count != numberOfDocuments)
             {
 
                 if (toVisit.Count != 0)
                 {
-                    if (!visited.Contains(toVisit[i]))
+                    String strToVisit = toVisit.Dequeue();
+
+                    if (!visited.Contains(strToVisit))//to prevent duplicate
                     {
-                        string temp = HTTPRequest(toVisit[i]);
+                        string temp = HTTPRequest(strToVisit);//call function to get html
+
                         if (!temp.Equals(""))
                         {
-                            content.Add(temp);
-                            visited.Add(toVisit[i]);
-                            GetSpecificContent(content[i]);
+                            content.Enqueue(temp);
+                            visited.Enqueue(strToVisit);
+                            String strContent = content.Dequeue();
+                            GetSpecificContent(strContent);
+                            String strSpecieficContent = specificContent.Dequeue();
+                            string[] row = { "", strToVisit, strContent, strSpecieficContent };//
+                            ListViewItem lvi = new ListViewItem(row);//
 
-                            string[] row = { "", toVisit[i], content[i], specificContent[i] };
-                            ListViewItem lvi = new ListViewItem(row);
-
-                            if (listView1.InvokeRequired)
+                            if (listView1.InvokeRequired) // We had to do this because we can't access UI objects from a thread
                                 listView1.Invoke(new MethodInvoker(delegate
                                 {
                                     listView1.Items.Add(lvi);
@@ -78,12 +86,11 @@ namespace IR
                             else
                                 listView1.Items.Add(lvi);
 
-                            searchForLinks(content[i]);
-                            i++;
+                            searchForLinks(strContent);
+                            
                         }
 
                     }
-                    toVisit.RemoveAt(i);
 
                 }
                 if (visitedCount.InvokeRequired)
@@ -163,7 +170,7 @@ namespace IR
                             continue;
 
                         if ((url.Contains("http://") || url.Contains("https://")) && (!toVisit.Contains(url)))
-                            toVisit.Add(url);
+                            toVisit.Enqueue(url);
                     }
                 }
             }
@@ -171,7 +178,7 @@ namespace IR
 
         private void GetSpecificContent(string htmlContent)
         {
-            specificContent.Add(htmltotext.ConvertHtml(htmlContent));
+            specificContent.Enqueue(htmltotext.ConvertHtml(htmlContent));
         }
         private void addCrawlerResultsToDatabase()
         {
@@ -186,9 +193,9 @@ namespace IR
                 cmd.Connection = conn;
                 cmd.CommandText = "INSERT_NEW_CRAWLER_RESULT";
                 cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.Add("page_url", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = visited[count];
-                cmd.Parameters.Add("page_content", OracleDbType.NClob, DBNull.Value, ParameterDirection.Input).Value = content[count];
-                cmd.Parameters.Add("page_specific_content", OracleDbType.NClob, DBNull.Value, ParameterDirection.Input).Value = specificContent[count];
+                cmd.Parameters.Add("page_url", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = visited.ElementAt(count);
+                cmd.Parameters.Add("page_content", OracleDbType.NClob, DBNull.Value, ParameterDirection.Input).Value = content.ElementAt(count);
+                cmd.Parameters.Add("page_specific_content", OracleDbType.NClob, DBNull.Value, ParameterDirection.Input).Value = specificContent.ElementAt(count);
                 cmd.ExecuteNonQuery();
                 count++;
             }
