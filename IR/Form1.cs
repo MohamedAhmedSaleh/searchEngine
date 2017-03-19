@@ -36,7 +36,7 @@ namespace IR
             content = new Queue<string>();
             specificContent = new Queue<string>();
             htmltotext = new HtmlToText();
-            numberOfDocuments = 3000;
+            numberOfDocuments = 3500;
             ServicePointManager.Expect100Continue = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             toVisit.Enqueue("https://en.wikipedia.org/wiki/Main_Page");
@@ -46,7 +46,7 @@ namespace IR
         private void crawl_Click(object sender, EventArgs e)
         {
             threads = new List<Thread>();
-            int numberOfThreads = 100;
+            int numberOfThreads = 200;
             for (int i = 0; i < numberOfThreads; i++)
             {
                 Thread newthread = new Thread(new ThreadStart(crawler));
@@ -83,7 +83,7 @@ namespace IR
         private void crawler()
         {
 
-            while (visited.Count != numberOfDocuments)
+            while (visited.Count <= numberOfDocuments)
             {
 
                 if (toVisit.Count != 0)
@@ -99,9 +99,8 @@ namespace IR
                             {
                                 content.Enqueue(temp);
                                 visited.Enqueue(strToVisit);
-                                String strContent = content.Dequeue();
+                                String strContent = temp;
                                 GetSpecificContent(strContent);
-                                String strSpecieficContent = specificContent.Dequeue();
                                 //string[] row = { "", strToVisit, strContent, strSpecieficContent };//
                                 //ListViewItem lvi = new ListViewItem(row);//
 
@@ -221,7 +220,12 @@ namespace IR
                 cmd.Parameters.Add("page_url", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = visited.ElementAt(count);
                 cmd.Parameters.Add("page_content", OracleDbType.NClob, DBNull.Value, ParameterDirection.Input).Value = content.ElementAt(count);
                 cmd.Parameters.Add("page_specific_content", OracleDbType.NClob, DBNull.Value, ParameterDirection.Input).Value = specificContent.ElementAt(count);
-                cmd.ExecuteNonQuery();
+                try
+                {
+                    cmd.ExecuteNonQuery();
+                }
+                catch (Exception ex)
+                { }
                 count++;
             }
         }
