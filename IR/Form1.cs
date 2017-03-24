@@ -36,7 +36,7 @@ namespace IR
             content = new Queue<string>();
             specificContent = new Queue<string>();
             htmltotext = new HtmlToText();
-            numberOfDocuments = 3500;
+            numberOfDocuments = 3200;
             ServicePointManager.Expect100Continue = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             toVisit.Enqueue("https://en.wikipedia.org/wiki/Main_Page");
@@ -46,7 +46,7 @@ namespace IR
         private void crawl_Click(object sender, EventArgs e)
         {
             threads = new List<Thread>();
-            int numberOfThreads = 200;
+            int numberOfThreads = 100;
             for (int i = 0; i < numberOfThreads; i++)
             {
                 Thread newthread = new Thread(new ThreadStart(crawler));
