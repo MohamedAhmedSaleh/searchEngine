@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using Oracle.DataAccess.Client;
 using Oracle.DataAccess.Types;
 using System.Threading;
+using System.Diagnostics;
 
 namespace IR
 {
@@ -94,13 +95,15 @@ namespace IR
                     {
                         semaphore.WaitOne();
                         String strToVisit = toVisit.Dequeue();
-                        semaphore.Release();
+
                         if (!visited.Contains(strToVisit))//to prevent duplicate
                         {
                             string temp = HTTPRequest(strToVisit);//call function to get html
 
                             if (!temp.Equals(""))
                             {
+                                searchForLinks(temp);
+                                semaphore.Release();
                                 content.Enqueue(temp);
                                 visited.Enqueue(strToVisit);
                                 String strContent = temp;
@@ -115,7 +118,6 @@ namespace IR
                                 //    }));
                                 //else
                                 //    listView1.Items.Add(lvi);
-                                searchForLinks(strContent);
 
                             }
 
