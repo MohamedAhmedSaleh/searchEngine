@@ -27,10 +27,12 @@ namespace IR
         string connectionString = "Data source=orcl; User Id=scott; Password=tiger;";
         OracleConnection conn;
         List<Thread> threads;
+        Semaphore semaphore;
 
         public Form1()
         {
             InitializeComponent();
+            semaphore = new Semaphore(1, 1);
             toVisit = new Queue<string>();
             visited = new Queue<string>();
             content = new Queue<string>();
@@ -90,7 +92,9 @@ namespace IR
                 {
                     try
                     {
+                        semaphore.WaitOne();
                         String strToVisit = toVisit.Dequeue();
+                        semaphore.Release();
                         if (!visited.Contains(strToVisit))//to prevent duplicate
                         {
                             string temp = HTTPRequest(strToVisit);//call function to get html
