@@ -33,7 +33,7 @@ namespace IR
         public Form1()
         {
             InitializeComponent();
-            semaphore = new Semaphore(7,7);
+            semaphore = new Semaphore(1,1);
             toVisit = new Queue<string>();
             visited = new Queue<string>();
             content = new Queue<string>();
@@ -101,7 +101,7 @@ namespace IR
                         semaphore.WaitOne();
                         String strToVisit = toVisit.Dequeue();
                         bool released = false;
-                        if (toVisit.Count > 7)
+                        if (toVisit.Count > 1)
                         {
                             semaphore.Release();
                             released = true;
