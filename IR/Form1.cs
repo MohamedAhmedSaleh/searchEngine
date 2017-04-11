@@ -33,7 +33,7 @@ namespace IR
         public Form1()
         {
             InitializeComponent();
-            semaphore = new Semaphore(1, 1);
+            semaphore = new Semaphore(6,6);
             toVisit = new Queue<string>();
             visited = new Queue<string>();
             content = new Queue<string>();
@@ -44,6 +44,10 @@ namespace IR
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             toVisit.Enqueue("https://en.wikipedia.org/wiki/Main_Page");
             toVisit.Enqueue("https://www.google.com");
+            toVisit.Enqueue("https://maktoob.yahoo.com/?p=us");
+            toVisit.Enqueue("http://www.msn.com");
+            toVisit.Enqueue("https://www.techmeme.com/");
+            toVisit.Enqueue("https://www.quora.com/");
         }
 
         private void crawl_Click(object sender, EventArgs e)
@@ -108,21 +112,12 @@ namespace IR
                                 visited.Enqueue(strToVisit);
                                 String strContent = temp;
                                 GetSpecificContent(strContent);
-                                //string[] row = { "", strToVisit, strContent, strSpecieficContent };//
-                                //ListViewItem lvi = new ListViewItem(row);//
-
-                                //if (listView1.InvokeRequired) // We had to do this because we can't access UI objects from a thread
-                                //    listView1.Invoke(new MethodInvoker(delegate
-                                //    {
-                                //        listView1.Items.Add(lvi);
-                                //    }));
-                                //else
-                                //    listView1.Items.Add(lvi);
-
                             }
 
                         }
-                    }
+                        else
+                            semaphore.Release();
+                        }
                     catch (Exception ex)
                     {
 
