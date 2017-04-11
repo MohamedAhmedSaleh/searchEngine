@@ -33,7 +33,7 @@ namespace IR
         public Form1()
         {
             InitializeComponent();
-            semaphore = new Semaphore(6,6);
+            semaphore = new Semaphore(7,7);
             toVisit = new Queue<string>();
             visited = new Queue<string>();
             content = new Queue<string>();
@@ -47,6 +47,7 @@ namespace IR
             toVisit.Enqueue("https://maktoob.yahoo.com/?p=us");
             toVisit.Enqueue("http://www.msn.com");
             toVisit.Enqueue("https://www.techmeme.com/");
+            toVisit.Enqueue("https://yts.ag/");
             toVisit.Enqueue("https://www.quora.com/");
         }
 
@@ -99,7 +100,12 @@ namespace IR
                     {
                         semaphore.WaitOne();
                         String strToVisit = toVisit.Dequeue();
-
+                        bool released = false;
+                        if (toVisit.Count > 7)
+                        {
+                            semaphore.Release();
+                            released = true;
+                        }
                         if (!visited.Contains(strToVisit))//to prevent duplicate
                         {
                             string temp = HTTPRequest(strToVisit);//call function to get html
@@ -107,7 +113,8 @@ namespace IR
                             if (!temp.Equals(""))
                             {
                                 searchForLinks(temp);
-                                semaphore.Release();
+                                if(!released)
+                                    semaphore.Release();
                                 content.Enqueue(temp);
                                 visited.Enqueue(strToVisit);
                                 String strContent = temp;
