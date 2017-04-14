@@ -14,6 +14,7 @@ using Oracle.DataAccess.Client;
 using Oracle.DataAccess.Types;
 using System.Threading;
 using System.Diagnostics;
+using HtmlAgilityPack;
 
 namespace IR
 {
@@ -33,7 +34,7 @@ namespace IR
         public Form1()
         {
             InitializeComponent();
-            semaphore = new Semaphore(1,1);
+            semaphore = new Semaphore(1, 1);
             toVisit = new Queue<string>();
             visited = new Queue<string>();
             content = new Queue<string>();
@@ -84,8 +85,10 @@ namespace IR
                     if (!threads[i].IsAlive)
                         threads.Remove(threads[i]);
             }
-
+            foreach (var strContent in content)
+                GetSpecificContent(strContent);
             addCrawlerResultsToDatabase();
+            MessageBox.Show("done");
         }
 
         private void crawler()
@@ -113,21 +116,20 @@ namespace IR
                             if (!temp.Equals(""))
                             {
                                 searchForLinks(temp);
-                                if(!released)
+                                if (!released)
                                     semaphore.Release();
                                 content.Enqueue(temp);
                                 visited.Enqueue(strToVisit);
                                 String strContent = temp;
-                                GetSpecificContent(strContent);
+
                             }
 
                         }
                         else
                             semaphore.Release();
-                        }
+                    }
                     catch (Exception ex)
                     {
-
                     }
 
 
@@ -142,12 +144,12 @@ namespace IR
         {
             WebRequest myWebRequest;
             WebResponse myWebResponse;
-
+            string rString = "";
             // Create a new 'WebRequest' object to the mentioned URL.
             Uri uri;
             if (!Uri.TryCreate(URL, UriKind.Absolute, out uri))
-                return "";
-            string rString;
+                return rString;
+
             try
             {
                 myWebRequest = WebRequest.Create(URL);
@@ -165,7 +167,6 @@ namespace IR
             }
             catch (Exception ex)
             {
-                return "";
             }
             return rString;
 
@@ -219,7 +220,7 @@ namespace IR
             int count = 0;
             OracleCommand cmd;
 
-            while (count < visited.Count)
+            while (count < visited.Count - 1)
             {
                 cmd = new OracleCommand();
                 cmd.Connection = conn;
@@ -233,9 +234,13 @@ namespace IR
                     cmd.ExecuteNonQuery();
                 }
                 catch (Exception ex)
-                { }
+                {
+                    MessageBox.Show(ex.Message);
+
+                }
                 count++;
             }
+            conn.Close();
         }
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {

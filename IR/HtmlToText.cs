@@ -19,7 +19,7 @@ namespace IR
         {
             HtmlDocument doc = new HtmlDocument();
             doc.Load(path);
-      
+
             StringWriter sw = new StringWriter();
             ConvertTo(doc.DocumentNode, sw);
             sw.Flush();
@@ -28,12 +28,20 @@ namespace IR
 
         public string ConvertHtml(string html)
         {
-            HtmlDocument doc = new HtmlDocument();
-            doc.LoadHtml(html);
-
             StringWriter sw = new StringWriter();
-            ConvertTo(doc.DocumentNode, sw);
-            sw.Flush();
+            try
+            {
+                HtmlDocument doc = new HtmlDocument();
+                doc.LoadHtml(html);
+
+
+                ConvertTo(doc.DocumentNode, sw);
+                sw.Flush();
+            }
+            catch
+            {
+                sw.Write("");
+            }
             return sw.ToString();
         }
 
@@ -47,6 +55,7 @@ namespace IR
 
         public void ConvertTo(HtmlNode node, TextWriter outText)
         {
+           
             string html;
             switch (node.NodeType)
             {
@@ -71,11 +80,14 @@ namespace IR
                     if (HtmlNode.IsOverlappedClosingElement(html))
                         break;
 
+
                     // check the text is meaningful and not a bunch of whitespaces
                     if (html.Trim().Length > 0)
                     {
                         outText.Write(HtmlEntity.DeEntitize(html));
                     }
+
+
                     break;
 
                 case HtmlNodeType.Element:
