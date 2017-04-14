@@ -24,6 +24,7 @@ namespace IR
         private Queue<String> visited;//urls//
         private Queue<String> content;//htmlcontent
         private Queue<String> specificContent; // specificContentFromhtml
+        private Queue<String[]> contentTokens;
         HtmlToText htmltotext;
         int numberOfDocuments;
         string connectionString = "Data source=orcl; User Id=scott; Password=tiger;";
@@ -39,6 +40,7 @@ namespace IR
             visited = new Queue<string>();
             content = new Queue<string>();
             specificContent = new Queue<string>();
+            contentTokens = new Queue<string[]>();
             htmltotext = new HtmlToText();
             numberOfDocuments = 3200;
             ServicePointManager.Expect100Continue = true;
@@ -241,6 +243,15 @@ namespace IR
                 count++;
             }
             conn.Close();
+        }
+
+        public void tokenize()
+        {
+            foreach (var item in specificContent)
+            {
+                string[] tokens = item.Split(new char[] { ' ', ',' });
+                contentTokens.Enqueue(tokens);
+            }
         }
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
