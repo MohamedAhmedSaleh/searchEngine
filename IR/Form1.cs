@@ -114,14 +114,15 @@ namespace IR
                         if (!visited.Contains(strToVisit))//to prevent duplicate
                         {
                             string temp = HTTPRequest(strToVisit);//call function to get html
-                            
+                            if (!temp.Equals(""))
+                            {
                                 searchForLinks(temp);
                                 if (!released)
                                     semaphore.Release();
                                 content.Enqueue(temp);
                                 visited.Enqueue(strToVisit);
                                 String strContent = temp;
-                            
+                            }
                         }
                         else
                             semaphore.Release();
