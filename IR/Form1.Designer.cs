@@ -35,6 +35,7 @@
             this.URLContent = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.visitedCount = new System.Windows.Forms.Label();
+            this.button1 = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // crawl
@@ -92,11 +93,22 @@
             this.visitedCount.Size = new System.Drawing.Size(0, 16);
             this.visitedCount.TabIndex = 3;
             // 
+            // button1
+            // 
+            this.button1.Location = new System.Drawing.Point(349, 12);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(119, 23);
+            this.button1.TabIndex = 4;
+            this.button1.Text = "English Documents";
+            this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.button1_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1243, 535);
+            this.Controls.Add(this.button1);
             this.Controls.Add(this.visitedCount);
             this.Controls.Add(this.listView1);
             this.Controls.Add(this.crawl);
@@ -117,6 +129,7 @@
         private System.Windows.Forms.ColumnHeader URL;
         private System.Windows.Forms.ColumnHeader URLContent;
         private System.Windows.Forms.ColumnHeader columnHeader1;
+        private System.Windows.Forms.Button button1;
     }
 }
 

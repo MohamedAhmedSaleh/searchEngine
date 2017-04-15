@@ -42,16 +42,12 @@ namespace IR
             specificContent = new Queue<string>();
             contentTokens = new Queue<string[]>();
             htmltotext = new HtmlToText();
-            numberOfDocuments = 3200;
+            numberOfDocuments = 2000;
             ServicePointManager.Expect100Continue = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             toVisit.Enqueue("https://en.wikipedia.org/wiki/Main_Page");
             toVisit.Enqueue("https://www.google.com");
             toVisit.Enqueue("https://maktoob.yahoo.com/?p=us");
-            toVisit.Enqueue("http://www.msn.com");
-            toVisit.Enqueue("https://www.techmeme.com/");
-            toVisit.Enqueue("https://yts.ag/");
-            toVisit.Enqueue("https://www.quora.com/");
         }
 
         private void crawl_Click(object sender, EventArgs e)
@@ -114,8 +110,7 @@ namespace IR
                         if (!visited.Contains(strToVisit))//to prevent duplicate
                         {
                             string temp = HTTPRequest(strToVisit);//call function to get html
-
-                            if (!temp.Equals(""))
+                            if (temp.Contains("lang = en"))
                             {
                                 searchForLinks(temp);
                                 if (!released)
@@ -123,7 +118,6 @@ namespace IR
                                 content.Enqueue(temp);
                                 visited.Enqueue(strToVisit);
                                 String strContent = temp;
-
                             }
 
                         }
@@ -133,8 +127,6 @@ namespace IR
                     catch (Exception ex)
                     {
                     }
-
-
                 }
 
 
@@ -256,6 +248,40 @@ namespace IR
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
             Application.Exit();
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            conn = new OracleConnection(connectionString);
+            conn.Open();
+            OracleCommand cmd;
+            cmd = new OracleCommand();
+            cmd.Connection = conn;
+            cmd.CommandText = "Get_All_documents";
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.Add("documents", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
+            OracleDataReader dr = cmd.ExecuteReader();
+            int count = 0;
+            while (dr.Read())
+            {
+                var id = Convert.ToInt32(dr["ID"]);
+                string dochtmlcontent = dr.GetString((1));
+                if (dochtmlcontent.Contains("lang=en"))
+                {
+                    count++;
+                }
+                else {
+                    //deletThisDocument(id);
+                }
+            }
+            MessageBox.Show("done");
+        }
+        private void deletThisDocument(Int32 id) {
+            OracleCommand c = new OracleCommand(connectionString);
+            c.Connection = conn;
+            c.CommandText = "Delete from crawler_results where id=:1";
+            c.Parameters.Add("id", id);
+            int r = c.ExecuteNonQuery();
         }
     }
 }
