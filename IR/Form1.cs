@@ -110,7 +110,7 @@ namespace IR
                         if (!visited.Contains(strToVisit))//to prevent duplicate
                         {
                             string temp = HTTPRequest(strToVisit);//call function to get html
-                            if (temp.Contains("lang = en"))
+                            if (temp.Contains("lang=en"))
                             {
                                 searchForLinks(temp);
                                 if (!released)
