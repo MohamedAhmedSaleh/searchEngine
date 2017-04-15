@@ -42,12 +42,16 @@ namespace IR
             specificContent = new Queue<string>();
             contentTokens = new Queue<string[]>();
             htmltotext = new HtmlToText();
-            numberOfDocuments = 2000;
+            numberOfDocuments = 10000;
             ServicePointManager.Expect100Continue = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             toVisit.Enqueue("https://en.wikipedia.org/wiki/Main_Page");
             toVisit.Enqueue("https://www.google.com");
-            //toVisit.Enqueue("https://maktoob.yahoo.com/?p=us");
+            toVisit.Enqueue("https://maktoob.yahoo.com/?p=us");
+            toVisit.Enqueue("http://www.msn.com");
+            toVisit.Enqueue("https://www.techmeme.com/");
+            toVisit.Enqueue("https://yts.ag/");
+            toVisit.Enqueue("https://www.quora.com/");
         }
 
         private void crawl_Click(object sender, EventArgs e)
@@ -110,15 +114,14 @@ namespace IR
                         if (!visited.Contains(strToVisit))//to prevent duplicate
                         {
                             string temp = HTTPRequest(strToVisit);//call function to get html
-                            if (temp.Contains("lang=en") || (temp.Contains("html PUBLIC") && temp.Contains("//EN")) || (temp.Contains("HTML PUBLIC") && temp.Contains("//EN")))
-                            {
+                            
                                 searchForLinks(temp);
                                 if (!released)
                                     semaphore.Release();
                                 content.Enqueue(temp);
                                 visited.Enqueue(strToVisit);
                                 String strContent = temp;
-                            }
+                            
                         }
                         else
                             semaphore.Release();
