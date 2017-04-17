@@ -25,6 +25,7 @@ namespace IR
         private Queue<String> content;//htmlcontent
         private Queue<String> specificContent; // specificContentFromhtml
         private Queue<String[]> contentTokens;
+        private Queue<String> EnglishContent;
         HtmlToText htmltotext;
         int numberOfDocuments;
         string connectionString = "Data source=orcl; User Id=scott; Password=tiger;";
@@ -39,10 +40,11 @@ namespace IR
             toVisit = new Queue<string>();
             visited = new Queue<string>();
             content = new Queue<string>();
+            EnglishContent = new Queue<string>();
             specificContent = new Queue<string>();
             contentTokens = new Queue<string[]>();
             htmltotext = new HtmlToText();
-            numberOfDocuments = 10000;
+            numberOfDocuments = 8000;
             ServicePointManager.Expect100Continue = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             toVisit.Enqueue("https://en.wikipedia.org/wiki/Main_Page");
@@ -265,26 +267,35 @@ namespace IR
             cmd.Parameters.Add("documents", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
             OracleDataReader dr = cmd.ExecuteReader();
             int count = 0;
+            string defaultstring = "!DOCTYPE HTML PUBLIC";
+            string defaultstring2 = "!DOCTYPE html PUBLIC";
+            int count2 = 0;
             while (dr.Read())
             {
                 var id = Convert.ToInt32(dr["ID"]);
                 string dochtmlcontent = dr.GetString((1));
-                if (dochtmlcontent.Contains("lang=en"))
+
+                if ((dochtmlcontent.Contains("lang=en")|| dochtmlcontent.Contains("lang={{locale}}") || dochtmlcontent.Contains(defaultstring2) || dochtmlcontent.Contains(defaultstring)))
                 {
+                    EnglishContent.Enqueue(dochtmlcontent);
                     count++;
                 }
                 else {
-                    //deletThisDocument(id);
+                    count2++;
+                    deletThisDocument(id);
                 }
             }
-            MessageBox.Show("done");
+            MessageBox.Show("Filtering Done");
         }
         private void deletThisDocument(Int32 id) {
-            OracleCommand c = new OracleCommand(connectionString);
-            c.Connection = conn;
-            c.CommandText = "Delete from crawler_results where id=:1";
-            c.Parameters.Add("id", id);
-            int r = c.ExecuteNonQuery();
+            conn = new OracleConnection(connectionString);
+            OracleCommand cmd;
+            cmd = new OracleCommand();
+            cmd.Connection = conn;
+            cmd.CommandText = "deletThisDocument";
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.Add("id", OracleDbType.Int32, DBNull.Value, ParameterDirection.Input).Value = id;
+            cmd.ExecuteNonQuery();
         }
     }
 }
