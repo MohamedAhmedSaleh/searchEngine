@@ -24,7 +24,7 @@ namespace IR
         private Queue<String> visited;//urls//
         private Queue<String> content;//htmlcontent
         private Queue<String> specificContent; // specificContentFromhtml
-        private Queue<String[]> contentTokens;
+        private Queue<Dictionary<Int32,List<string>>> contentTokens;
         private Queue<String> EnglishContent;
         HtmlToText htmltotext;
         int numberOfDocuments;
@@ -42,8 +42,9 @@ namespace IR
             content = new Queue<string>();
             EnglishContent = new Queue<string>();
             specificContent = new Queue<string>();
-            contentTokens = new Queue<string[]>();
+            contentTokens = new Queue<Dictionary<Int32, List<string>>>();
             htmltotext = new HtmlToText();
+            threads = new List<Thread>();
             numberOfDocuments = 8000;
             ServicePointManager.Expect100Continue = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
@@ -58,7 +59,6 @@ namespace IR
 
         private void crawl_Click(object sender, EventArgs e)
         {
-            threads = new List<Thread>();
             int numberOfThreads = 100;
             for (int i = 0; i < numberOfThreads; i++)
             {
@@ -242,19 +242,10 @@ namespace IR
             conn.Close();
         }
 
-        public void tokenize()
-        {
-            foreach (var item in specificContent)
-            {
-                string[] tokens = item.Split(new char[] { ' ', ',' });
-                contentTokens.Enqueue(tokens);
-            }
-        }
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
             Application.Exit();
         }
-
         private void button1_Click(object sender, EventArgs e)
         {
             conn = new OracleConnection(connectionString);
@@ -275,19 +266,21 @@ namespace IR
                 var id = Convert.ToInt32(dr["ID"]);
                 string dochtmlcontent = dr.GetString((1));
 
-                if ((dochtmlcontent.Contains("lang=en")|| dochtmlcontent.Contains("lang={{locale}}") || dochtmlcontent.Contains(defaultstring2) || dochtmlcontent.Contains(defaultstring)))
+                if ((dochtmlcontent.Contains("lang=en") || dochtmlcontent.Contains("lang={{locale}}") || dochtmlcontent.Contains(defaultstring2) || dochtmlcontent.Contains(defaultstring)))
                 {
                     EnglishContent.Enqueue(dochtmlcontent);
                     count++;
                 }
-                else {
+                else
+                {
                     count2++;
                     deletThisDocument(id);
                 }
             }
             MessageBox.Show("Filtering Done");
         }
-        private void deletThisDocument(Int32 id) {
+        private void deletThisDocument(Int32 id)
+        {
             conn = new OracleConnection(connectionString);
             OracleCommand cmd;
             cmd = new OracleCommand();
@@ -296,6 +289,79 @@ namespace IR
             cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.Add("id", OracleDbType.Int32, DBNull.Value, ParameterDirection.Input).Value = id;
             cmd.ExecuteNonQuery();
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            conn = new OracleConnection(connectionString);
+            conn.Open();
+            OracleCommand cmd;
+            cmd = new OracleCommand();
+            cmd.Connection = conn;
+            cmd.CommandText = "Get_All_documents";
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.Add("documents", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
+            OracleDataReader dr = cmd.ExecuteReader();
+
+            while (dr.Read())
+            {
+                var id = Convert.ToInt32(dr["ID"]);
+                Page page = new Page();
+                page.Id = id;
+                page.SpecificContent = dr.GetString(2);
+                Thread newthread = new Thread(new ParameterizedThreadStart(tokenize));
+                threads.Add(newthread);
+                newthread.IsBackground = true;
+                newthread.Start(page);
+            }
+            Thread thread = new Thread(new ThreadStart(hangleProcessingThreads));
+            thread.IsBackground = true;
+            thread.Start();
+        }
+        public void tokenize(Object obj)
+        {
+            Page page = (Page)obj;
+            string[] tokens = page.SpecificContent.Split(new string[] {" ", ",","،","°","!", "%", "&","(", ")", "*","**", "*!", ";", "+=", "**=","+", "-", ".", "/","/!", "//","ً",
+                    "{","}", "^", "-=","<","<=","<>","=","==",">",">=","?","@", "|=","*=","[","]","|","~","~="/*,"`"*/,":","&=","/=","\r\n","\r","\n","\\","\"","?","ـ","©","؟","ُ"
+                    ,"ال","ا","آ","ٱ","إ","أ","ل","ك","ط","ظ","م","ء","ق","خ","ع","ف","ج","ح","ش","س","غ","ص","ذ","د","ز","ر","ء","ؤ","ّ",
+                    "و","ض","ب","ت","ث","ن","ي","ئ","ى","ه","ة"}, StringSplitOptions.RemoveEmptyEntries);
+            List<string> ListOfStrings = tokens.ToList();
+            List<string> ListOfEnglishStrings = new List<string>();
+            Dictionary<int, List<string>> temp = new Dictionary<int, List<string>>();
+            for (int i = 0; i < ListOfStrings.Count; i++)
+            {
+                if (Regex.IsMatch(ListOfStrings[i], "^[a-zA-Z]*$"))
+                {
+                    
+                    ListOfEnglishStrings.Add(ListOfStrings[i].ToLower());
+                }
+            }
+            temp[page.Id] = ListOfEnglishStrings;
+            contentTokens.Enqueue(temp);
+        }
+
+        private void hangleProcessingThreads()
+        {
+            while (threads.Count != 0 || contentTokens.Count > 0)
+            {
+                if (label1.InvokeRequired)
+                    visitedCount.Invoke(new MethodInvoker(delegate
+                    {
+                        label1.Text = "ContentTokens : " + contentTokens.Count;
+                    }));
+                else
+                    label1.Text = "ContentTokens: " + contentTokens.Count;
+                for (int i = 0; i < threads.Count; i++)
+                    if (!threads[i].IsAlive)
+                        threads.Remove(threads[i]);
+                if (contentTokens.Count > 0)
+                {
+                    CalculateFrequency(contentTokens.Dequeue());
+                }
+            }
+        }
+        private void CalculateFrequency(Dictionary<int, List<string>> index) {
+
         }
     }
 }
