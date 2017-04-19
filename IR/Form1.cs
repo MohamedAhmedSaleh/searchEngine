@@ -363,7 +363,17 @@ namespace IR
         }
 
         private void beforeStemmingDataBase(Dictionary<int, List<string>> index) {
-            
+            saveWordToDataBase();
+            stemWord();
+        }
+
+        private void saveWordToDataBase(int documentId,String word)
+        {
+
+        }
+        private void stemWord(String word)
+        {
+
         }
     }
 }
