@@ -32,6 +32,7 @@ namespace IR
         OracleConnection conn;
         List<Thread> threads;
         Semaphore semaphore;
+        List<string> documentTerms;
 
         public Form1()
         {
@@ -45,6 +46,7 @@ namespace IR
             contentTokens = new Queue<Dictionary<Int32, List<string>>>();
             htmltotext = new HtmlToText();
             threads = new List<Thread>();
+            documentTerms = new List<string>();
             numberOfDocuments = 8000;
             ServicePointManager.Expect100Continue = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
@@ -332,7 +334,6 @@ namespace IR
             {
                 if (Regex.IsMatch(ListOfStrings[i], "^[a-zA-Z]*$"))
                 {
-                    
                     ListOfEnglishStrings.Add(ListOfStrings[i].ToLower());
                 }
             }
@@ -356,85 +357,13 @@ namespace IR
                         threads.Remove(threads[i]);
                 if (contentTokens.Count > 0)
                 {
-                    CalculateFrequency(contentTokens.Dequeue());
+                    beforeStemmingDataBase(contentTokens.Dequeue());
                 }
             }
         }
-        private void CalculateFrequency(Dictionary<int, List<string>> index) {
 
-        }
-        /** Test program for demonstrating the Stemmer.  It reads text from a
-		 * a list of files, stems each word, and writes the result to standard
-		 * output. Note that the word stemmed is expected to be in lower case:
-		 * forcing lower case must be done outside the Stemmer class.
-		 * Usage: Stemmer file-name file-name ...
-		 */
-        public static void Main(String[] args)
-        {
-            if (args.Length == 0)
-            {
-                Console.WriteLine("Usage:  Stemmer <input file>");
-                return;
-            }
-            char[] w = new char[501];
-            Stemmer s = new Stemmer();
-            for (int i = 0; i < args.Length; i++)
-                try
-                {
-                    FileStream _in = new FileStream(args[i], FileMode.Open, FileAccess.Read);
-                    try
-                    {
-                        while (true)
-                        {
-                            int ch = _in.ReadByte();
-                            if (Char.IsLetter((char)ch))
-                            {
-                                int j = 0;
-                                while (true)
-                                {
-                                    ch = Char.ToLower((char)ch);
-                                    w[j] = (char)ch;
-                                    if (j < 500)
-                                        j++;
-                                    ch = _in.ReadByte();
-                                    if (!Char.IsLetter((char)ch))
-                                    {
-                                        /* to test add(char ch) */
-                                        for (int c = 0; c < j; c++)
-                                            s.add(w[c]);
-                                        /* or, to test add(char[] w, int j) */
-                                        /* s.add(w, j); */
-                                        s.stem();
-
-                                        String u;
-
-                                        /* and now, to test toString() : */
-                                        u = s.ToString();
-
-                                        /* to test getResultBuffer(), getResultLength() : */
-                                        /* u = new String(s.getResultBuffer(), 0, s.getResultLength()); */
-
-                                        Console.Write(u);
-                                        break;
-                                    }
-                                }
-                            }
-                            if (ch < 0)
-                                break;
-                            Console.Write((char)ch);
-                        }
-                    }
-                    catch (IOException)
-                    {
-                        Console.WriteLine("error reading " + args[i]);
-                        break;
-                    }
-                }
-                catch (FileNotFoundException)
-                {
-                    Console.WriteLine("file " + args[i] + " not found");
-                    break;
-                }
+        private void beforeStemmingDataBase(Dictionary<int, List<string>> index) {
+            
         }
     }
 }
