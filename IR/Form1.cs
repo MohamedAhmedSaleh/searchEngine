@@ -33,7 +33,7 @@ namespace IR
         List<Thread> threads;
         Semaphore semaphore;
         List<string> documentTerms;
-        
+
 
         public Form1()
         {
@@ -363,12 +363,13 @@ namespace IR
             }
         }
 
-        private void HandlingModule1(Dictionary<int, List<string>> index) {
+        private void HandlingModule1(Dictionary<int, List<string>> index)
+        {
             saveWordToDataBase(index);
-            Dictionary<int, List<string>> stemmers = stemWord(index);
+            List<string> stemmers = stemWord(index.Values.ElementAt(0));
             Dictionary<string, int> frequences = Frequences(stemmers);
             Dictionary<string, string> positions = Positions(stemmers);
-            OneDocumentInvindex doc = new OneDocumentInvindex(index.Keys.ElementAt(0),index.Values.ElementAt(0).Distinct().ToList(), frequences, positions);
+            OneDocumentInvindex doc = new OneDocumentInvindex(index.Keys.ElementAt(0), index.Values.ElementAt(0).Distinct().ToList(), frequences, positions);
             SaveInvertedIndex(StopWordsRemovals(doc));
         }
         private void saveWordToDataBase(Dictionary<int, List<string>> index)
@@ -401,60 +402,58 @@ namespace IR
             }
             conn.Dispose();
         }
-        private Dictionary<int,List<String>> stemWord(Dictionary<int, List<string>> index)
+        private List<String> stemWord(List<string> index)
         {
-            Dictionary<int, List<String>> stemming = new Dictionary<int, List<string>>();
-            foreach(var item in index)
+            List<String> stemming = new List<String>();
+            for (int i=0;i<index.Count;i++)
             {
-                List<string> items = new List<string>();
-                for(int i=0;i<item.Value.Count;i++)
-                {
-                    char[] w = item.Value[i].ToCharArray();
-                    int wLength = item.Value[i].Length;
-                    Stemmer s = new Stemmer();
-                    s.add(w, wLength);
-                    s.stem();
-                    string stemmed = s.ToString();
-                    items.Add(stemmed);
-                }
-                stemming[item.Key] = items;
-
+                char[] w = index.ElementAt(i).ToCharArray();
+                int wLength = index.ElementAt(i).Length;
+                Stemmer s = new Stemmer();
+                s.add(w, wLength);
+                s.stem();
+                string stemmed = s.ToString();
+                stemming.Add(stemmed);
             }
              return stemming;
         }
-        private Dictionary<string, int> Frequences(Dictionary<int, List<string>> term) {
-            Dictionary<string, int> fre = new Dictionary<string, int>();
-            foreach (var grp in term.Values.ElementAt(0))
-            {
-                if (fre.ContainsKey(grp))
-                    fre[grp]++;
-                else
-                    fre[grp] = 1;
-            }
-            return fre;
+    private Dictionary<string, int> Frequences(List<string> term)
+    {
+        Dictionary<string, int> fre = new Dictionary<string, int>();
+        foreach (var grp in term)
+        {
+            if (fre.ContainsKey(grp))
+                fre[grp]++;
+            else
+                fre[grp] = 1;
         }
-        private Dictionary<string, string> Positions(Dictionary<int, List<string>> term) {
-            Dictionary<string, string> fre = new Dictionary<string, string>();
-            int i = 0;
-            foreach (var grp in term.Values.ElementAt(0))
-            {
-                if (!(fre.ContainsKey(grp)))
-                    fre[grp] += (i.ToString());
-                else if (fre.ContainsKey(grp))
-                    fre[grp] += '#' + (i.ToString());
-                else if (fre.ContainsKey(grp) && i == term.Count - 1)
-                    fre[grp] += (i.ToString());
-                i++;
-            }
-            return fre;
+        return fre;
+    }
+    private Dictionary<string, string> Positions(List<string> term)
+    {
+        Dictionary<string, string> fre = new Dictionary<string, string>();
+        int i = 0;
+        foreach (var grp in term)
+        {
+            if (!(fre.ContainsKey(grp)))
+                fre[grp] += (i.ToString());
+            else if (fre.ContainsKey(grp))
+                fre[grp] += '#' + (i.ToString());
+            else if (fre.ContainsKey(grp) && i == term.Count - 1)
+                fre[grp] += (i.ToString());
+            i++;
         }
-        private OneDocumentInvindex StopWordsRemovals(OneDocumentInvindex doc) {
-            OneDocumentInvindex DocumentUpdated;
-            String temp = "";
-            for (int i = 0; i < doc.Terms.Count; i++) {
-                temp = doc.Terms[i] + " ";
-            }
-            string[] AfterWordsRemoval = temp.Split(new string[] {" ","a ", "about", "above", "above", "across", "after", "afterwards", "again", "against", "all", "almost", "alone", "along", "already", "also",
+        return fre;
+    }
+    private OneDocumentInvindex StopWordsRemovals(OneDocumentInvindex doc)
+    {
+        OneDocumentInvindex DocumentUpdated;
+        String temp = "";
+        for (int i = 0; i < doc.Terms.Count; i++)
+        {
+            temp = doc.Terms[i] + " ";
+        }
+        string[] AfterWordsRemoval = temp.Split(new string[] {" ","a ", "about", "above", "above", "across", "after", "afterwards", "again", "against", "all", "almost", "alone", "along", "already", "also",
                     "anyway", "anywhere", "are", "around", "as", "at", "back", "be", "became", "because", "become", "becomes", "becoming", "been", "before", "beforehand", "behind", "being", "below", "beside",
                     "besides", "between", "beyond", "bill", "both", "bottom", "but", "by", "call", "can", "cannot", "cant", "co", "con", "could", "couldnt", "cry", "de", "describe", "detail", "do", "done",
                     "down", "due", "during", "each", "eg", "eight", "either", "eleven", "else", "elsewhere", "empty", "enough", "etc", "even", "ever", "every", "everyone", "everything", "everywhere", "except",
@@ -467,35 +466,36 @@ namespace IR
                     "take", "ten", "than", "that", "the", "their","them", "themselves", "then", "thence", "there", "thereafter", "thereby", "therefore", "therein", "thereupon", "these", "they", "thickv", "thin", "third", "this", "those", "though",
                     "three", "through", "throughout", "thru", "thus", "to", "together", "too", "top", "toward", "towards", "twelve", "twenty", "two", "un", "under", "until", "up", "upon", "us", "very", "via", "was", "we", "well", "were", "what",
                     "whatever", "when", "whence", "whenever", "where", "whereafter", "whereas", "whereby", "wherein", "whereupon", "wherever"}, StringSplitOptions.RemoveEmptyEntries);
-            List<string> ListOfPureWords = AfterWordsRemoval.ToList();
-            DocumentUpdated = new OneDocumentInvindex(doc.DocumentId, ListOfPureWords, doc.Frequences, doc.Positions);
-            return DocumentUpdated;
-        }
-        private void SaveInvertedIndex(OneDocumentInvindex doc) {
-            conn = new OracleConnection(connectionString);
-            conn.Open();
-            OracleCommand cmd;
-            for (int i = 0; i < doc.Terms.Count(); i++)
-            {
-                string term = doc.Terms.ElementAt(i);
-                cmd = new OracleCommand();
-                cmd.Connection = conn;
-                cmd.CommandText = "INSERT_NEW_TERM_INVERTEDINDEX";
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.Add("Word", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = doc.Positions.Keys.ElementAt(i);
-                cmd.Parameters.Add("freq", OracleDbType.Int32, DBNull.Value, ParameterDirection.Input).Value = doc.Frequences[term];
-                cmd.Parameters.Add("pos", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = doc.Positions[term];
-                cmd.Parameters.Add("docID", OracleDbType.Int32, DBNull.Value, ParameterDirection.Input).Value = doc.DocumentId;
-                try
-                {
-                    cmd.ExecuteNonQuery();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(ex.Message);
-                }
-            }
-            MessageBox.Show("Save Inverted Indext to One Document Done !!");
-        }
+        List<string> ListOfPureWords = AfterWordsRemoval.ToList();
+        DocumentUpdated = new OneDocumentInvindex(doc.DocumentId, ListOfPureWords, doc.Frequences, doc.Positions);
+        return DocumentUpdated;
     }
+    private void SaveInvertedIndex(OneDocumentInvindex doc)
+    {
+        conn = new OracleConnection(connectionString);
+        conn.Open();
+        OracleCommand cmd;
+        for (int i = 0; i < doc.Terms.Count(); i++)
+        {
+            string term = doc.Terms.ElementAt(i);
+            cmd = new OracleCommand();
+            cmd.Connection = conn;
+            cmd.CommandText = "INSERT_NEW_TERM_INVERTEDINDEX";
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.Add("Word", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = doc.Positions.Keys.ElementAt(i);
+            cmd.Parameters.Add("freq", OracleDbType.Int32, DBNull.Value, ParameterDirection.Input).Value = doc.Frequences[term];
+            cmd.Parameters.Add("pos", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = doc.Positions[term];
+            cmd.Parameters.Add("docID", OracleDbType.Int32, DBNull.Value, ParameterDirection.Input).Value = doc.DocumentId;
+            try
+            {
+                cmd.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
+        MessageBox.Show("Save Inverted Indext to One Document Done !!");
+    }
+}
 }
