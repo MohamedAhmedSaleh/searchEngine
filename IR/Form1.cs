@@ -365,7 +365,7 @@ namespace IR
 
         private void HandlingModule1(Dictionary<int, List<string>> index) {
             saveWordToDataBase(index);
-            List<string> stemmers = stemWord(index);
+            Dictionary<int, List<string>> stemmers = stemWord(index);
             Dictionary<string, int> frequences = Frequences(stemmers);
             Dictionary<string, string> positions = Positions(stemmers);
             OneDocumentInvindex doc = new OneDocumentInvindex(index.Keys.ElementAt(0),index.Values.ElementAt(0).Distinct().ToList(), frequences, positions);
@@ -422,9 +422,9 @@ namespace IR
             }
              return stemming;
         }
-        private Dictionary<string, int> Frequences(List<string> term) {
+        private Dictionary<string, int> Frequences(Dictionary<int, List<string>> term) {
             Dictionary<string, int> fre = new Dictionary<string, int>();
-            foreach (var grp in term)
+            foreach (var grp in term.Values.ElementAt(0))
             {
                 if (fre.ContainsKey(grp))
                     fre[grp]++;
@@ -433,10 +433,10 @@ namespace IR
             }
             return fre;
         }
-        private Dictionary<string, string> Positions(List<string> term) {
+        private Dictionary<string, string> Positions(Dictionary<int, List<string>> term) {
             Dictionary<string, string> fre = new Dictionary<string, string>();
             int i = 0;
-            foreach (var grp in term)
+            foreach (var grp in term.Values.ElementAt(0))
             {
                 if (!(fre.ContainsKey(grp)))
                     fre[grp] += (i.ToString());
