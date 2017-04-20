@@ -402,7 +402,8 @@ namespace IR
             conn.Dispose();
         }
         private List<string> stemWord(Dictionary<int, List<string>> index)
-        {
+        { 
+            // Reda Plz Fill it 
             return null;
         }
         private Dictionary<string, int> Frequences(List<string> term) {
