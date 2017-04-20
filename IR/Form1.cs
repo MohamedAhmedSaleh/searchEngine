@@ -358,12 +358,12 @@ namespace IR
                         threads.Remove(threads[i]);
                 if (contentTokens.Count > 0)
                 {
-                    beforeStemmingDataBase(contentTokens.Dequeue());
+                    HandlingModule1(contentTokens.Dequeue());
                 }
             }
         }
 
-        private void beforeStemmingDataBase(Dictionary<int, List<string>> index) {
+        private void HandlingModule1(Dictionary<int, List<string>> index) {
             saveWordToDataBase(index);
             List<string> stemmers = stemWord(index);
             Dictionary<string, int> frequences = Frequences(stemmers);
