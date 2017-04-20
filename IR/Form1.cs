@@ -401,10 +401,26 @@ namespace IR
             }
             conn.Dispose();
         }
-        private List<string> stemWord(Dictionary<int, List<string>> index)
-        { 
-            // Reda Plz Fill it 
-            return null;
+        private Dictionary<int,List<String>> stemWord(Dictionary<int, List<string>> index)
+        {
+            Dictionary<int, List<String>> stemming = new Dictionary<int, List<string>>();
+            foreach(var item in index)
+            {
+                List<string> items = new List<string>();
+                for(int i=0;i<item.Value.Count;i++)
+                {
+                    char[] w = item.Value[i].ToCharArray();
+                    int wLength = item.Value[i].Length;
+                    Stemmer s = new Stemmer();
+                    s.add(w, wLength);
+                    s.stem();
+                    string stemmed = s.ToString();
+                    items.Add(stemmed);
+                }
+                stemming[item.Key] = items;
+
+            }
+             return stemming;
         }
         private Dictionary<string, int> Frequences(List<string> term) {
             Dictionary<string, int> fre = new Dictionary<string, int>();
