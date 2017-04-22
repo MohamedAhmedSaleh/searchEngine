@@ -33,7 +33,7 @@ namespace IR
         List<Thread> threads;
         Semaphore semaphore;
         List<string> documentTerms;
-
+        List<string> stop;
 
         public Form1()
         {
@@ -48,6 +48,9 @@ namespace IR
             htmltotext = new HtmlToText();
             threads = new List<Thread>();
             documentTerms = new List<string>();
+            conn = new OracleConnection(connectionString);
+            stop  = new List<string>();
+            conn.Open();
             numberOfDocuments = 8000;
             ServicePointManager.Expect100Continue = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
@@ -58,6 +61,25 @@ namespace IR
             toVisit.Enqueue("https://www.techmeme.com/");
             toVisit.Enqueue("https://yts.ag/");
             toVisit.Enqueue("https://www.quora.com/");
+
+            string[] StopWords = new string[] {"a", "about", "above", "after","again", "against", "all", "almost", "along", "am", "also","and","any","anyway", "anywhere", "are","aren't","as", "at",
+                    "because", "be", "before", "becomes", "becoming", "been", "before", "beforehand", "behind", "being", "below", "beside","besides", "between", "beyond", "both", "bottom", "but", "by",
+                    "can", "cannot", "cant","could", "couldnt",
+                    "do", "describe", "detail", "do", "done","down", "due", "during",
+                    "each", "eg", "eight", "either", "eleven", "else", "elsewhere", "empty", "enough", "etc", "even", "ever", "every", "everyone", "everything", "everywhere", "except",
+                    "few", "fifteen", "fify", "fill", "find", "fire", "first", "five", "for", "former", "formerly", "forty", "found", "four", "from", "front", "full", "further", "get", "give", "go", "had", "has",
+                    "hasnt", "have", "he", "hence", "her", "here", "hereafter", "hereby", "herein", "hereupon", "hers", "herself", "him", "himself", "his", "how", "however", "hundred", "ie", "if", "in", "inc", "indeed",
+                    "interest", "into", "is", "it", "its", "itself", "keep", "last", "latter", "latterly", "least", "less", "ltd", "made", "many", "may", "me", "meanwhile", "might", "mill", "mine", "more", "moreover", "most",
+                    "mostly", "move", "much", "must", "my","myself", "name", "namely", "neither", "never", "nevertheless", "next", "nine", "no", "nobody", "none", "noone", "nor", "not", "nothing", "now", "nowhere", "of", "off", "often",
+                    "on", "once", "one", "only", "onto", "or", "other", "others", "otherwise", "our", "ours", "ourselves", "out", "over", "own", "part", "per", "perhaps", "please", "put", "rather", "re", "same", "see", "seem", "seemed",
+                    "seeming", "seems", "serious", "several", "she","should", "show", "side", "since", "sincere", "six", "sixty", "so", "some", "somehow", "someone", "something", "sometime", "sometimes", "somewhere", "still", "such", "system",
+                    "take", "ten", "than", "that", "the", "their","them", "themselves", "then", "thence", "there", "thereafter", "thereby", "therefore", "therein", "thereupon", "these", "they", "thickv", "thin", "third", "this", "those", "though",
+                    "three", "through", "throughout", "thru", "thus", "to", "together", "too", "top", "toward", "towards", "twelve", "twenty", "two", "un", "under", "until", "up", "upon", "us", "very", "via", "was", "we", "well", "were", "what",
+                    "whatever", "when", "whence", "whenever", "where", "whereafter", "whereas", "whereby", "wherein", "whereupon", "wherever" };
+            for (int i = 0; i < StopWords.Count(); i++)
+            {
+                stop.Add(StopWords[i]);
+            }
         }
 
         private void crawl_Click(object sender, EventArgs e)
@@ -217,8 +239,7 @@ namespace IR
         }
         private void addCrawlerResultsToDatabase()
         {
-            conn = new OracleConnection(connectionString);
-            conn.Open();
+            
             int count = 0;
             OracleCommand cmd;
 
@@ -317,6 +338,8 @@ namespace IR
                 newthread.IsBackground = true;
                 newthread.Start(page);
             }
+            dr.Close();
+            conn.Close();
             Thread thread = new Thread(new ThreadStart(hangleProcessingThreads));
             thread.IsBackground = true;
             thread.Start();
@@ -358,37 +381,53 @@ namespace IR
                         threads.Remove(threads[i]);
                 if (contentTokens.Count > 0)
                 {
+                    /*Thread thread = new Thread(new ParameterizedThreadStart(HandlingModule1));
+                    thread.IsBackground = true;
+                    thread.Start(contentTokens.Dequeue());*/
                     HandlingModule1(contentTokens.Dequeue());
                 }
             }
+            MessageBox.Show("Save Inverted Indext to One Document Done !!");
         }
 
         private void HandlingModule1(Dictionary<int, List<string>> index)
         {
+            //Dictionary<int, List<string>> index = (Dictionary<int, List<string>>)obj;
             saveWordToDataBase(index);
             List<string> stemmers = stemWord(index.Values.ElementAt(0));
             Dictionary<string, int> frequences = Frequences(stemmers);
             Dictionary<string, string> positions = Positions(stemmers);
-            OneDocumentInvindex doc = new OneDocumentInvindex(index.Keys.ElementAt(0), index.Values.ElementAt(0).Distinct().ToList(), frequences, positions);
+            OneDocumentInvindex doc = new OneDocumentInvindex(index.Keys.ElementAt(0),stemmers.Distinct().ToList(), frequences, positions);
             SaveInvertedIndex(StopWordsRemovals(doc));
         }
+
         private void saveWordToDataBase(Dictionary<int, List<string>> index)
         {
-            conn = new OracleConnection(connectionString);
-            conn.Open();
             OracleCommand cmd;
             foreach (KeyValuePair<int, List<string>> item in index)
             {
                 int id = item.Key;
                 List<string> distinct = item.Value.Distinct().ToList();
+                conn.Open();
                 for (int i = 0; i < distinct.Count; i++)
                 {
+                    string term = distinct.ElementAt(i);
                     cmd = new OracleCommand();
                     cmd.Connection = conn;
-                    cmd.CommandText = "INSERT_NEW_Term";
-                    cmd.CommandType = CommandType.StoredProcedure;
-                    cmd.Parameters.Add("documentId", OracleDbType.Int32, DBNull.Value, ParameterDirection.Input).Value = id;
-                    cmd.Parameters.Add("Term", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = distinct.ElementAt(i);
+                    if (TermInserted(term, "GetTermDetailsBefStem"))
+                    {
+                        cmd.CommandText = "UpdateTermBEFSTEMMING";
+                        cmd.CommandType = CommandType.StoredProcedure;
+                        cmd.Parameters.Add("Term", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = term;
+                        cmd.Parameters.Add("documentId", OracleDbType.Int32, DBNull.Value, ParameterDirection.Input).Value = id.ToString();
+                    }
+                    else
+                    {
+                        cmd.CommandText = "INSERTNEWTERMBEFSTEMMING";
+                        cmd.CommandType = CommandType.StoredProcedure;
+                        cmd.Parameters.Add("Term", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = term;
+                        cmd.Parameters.Add("documentId", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = id.ToString();
+                    }
                     try
                     {
                         cmd.ExecuteNonQuery();
@@ -398,9 +437,8 @@ namespace IR
                         MessageBox.Show(ex.Message);
                     }
                 }
-                MessageBox.Show("Save Data Before Stemming Done !!");
+                conn.Close();
             }
-            conn.Dispose();
         }
         private List<String> stemWord(List<string> index)
         {
@@ -436,7 +474,7 @@ namespace IR
             foreach (var grp in term)
             {
                 if (!(fre.ContainsKey(grp)))
-                    fre[grp] += (i.ToString());
+                    fre[grp] = (i.ToString());
                 else if (fre.ContainsKey(grp))
                     fre[grp] += '#' + (i.ToString());
                 else if (fre.ContainsKey(grp) && i == term.Count - 1)
@@ -448,54 +486,91 @@ namespace IR
         private OneDocumentInvindex StopWordsRemovals(OneDocumentInvindex doc)
         {
             OneDocumentInvindex DocumentUpdated;
-            String temp = "";
-            for (int i = 0; i < doc.Terms.Count; i++)
-            {
-                temp = doc.Terms[i] + " ";
+            List<string> documentTerms = doc.Terms;
+            for (int i = 0; i < documentTerms.Count; i++) {
+                if (stop.Contains(documentTerms[i])) {
+                    documentTerms.RemoveAt(i);
+                }
             }
-            string[] AfterWordsRemoval = temp.Split(new string[] {" ","a ", "about", "above", "above", "across", "after", "afterwards", "again", "against", "all", "almost", "alone", "along", "already", "also",
-                    "anyway", "anywhere", "are", "around", "as", "at", "back", "be", "became", "because", "become", "becomes", "becoming", "been", "before", "beforehand", "behind", "being", "below", "beside",
-                    "besides", "between", "beyond", "bill", "both", "bottom", "but", "by", "call", "can", "cannot", "cant", "co", "con", "could", "couldnt", "cry", "de", "describe", "detail", "do", "done",
-                    "down", "due", "during", "each", "eg", "eight", "either", "eleven", "else", "elsewhere", "empty", "enough", "etc", "even", "ever", "every", "everyone", "everything", "everywhere", "except",
-                    "few", "fifteen", "fify", "fill", "find", "fire", "first", "five", "for", "former", "formerly", "forty", "found", "four", "from", "front", "full", "further", "get", "give", "go", "had", "has",
-                    "hasnt", "have", "he", "hence", "her", "here", "hereafter", "hereby", "herein", "hereupon", "hers", "herself", "him", "himself", "his", "how", "however", "hundred", "ie", "if", "in", "inc", "indeed",
-                    "interest", "into", "is", "it", "its", "itself", "keep", "last", "latter", "latterly", "least", "less", "ltd", "made", "many", "may", "me", "meanwhile", "might", "mill", "mine", "more", "moreover", "most",
-                    "mostly", "move", "much", "must", "my","myself", "name", "namely", "neither", "never", "nevertheless", "next", "nine", "no", "nobody", "none", "noone", "nor", "not", "nothing", "now", "nowhere", "of", "off", "often",
-                    "on", "once", "one", "only", "onto", "or", "other", "others", "otherwise", "our", "ours", "ourselves", "out", "over", "own", "part", "per", "perhaps", "please", "put", "rather", "re", "same", "see", "seem", "seemed",
-                    "seeming", "seems", "serious", "several", "she","should", "show", "side", "since", "sincere", "six", "sixty", "so", "some", "somehow", "someone", "something", "sometime", "sometimes", "somewhere", "still", "such", "system",
-                    "take", "ten", "than", "that", "the", "their","them", "themselves", "then", "thence", "there", "thereafter", "thereby", "therefore", "therein", "thereupon", "these", "they", "thickv", "thin", "third", "this", "those", "though",
-                    "three", "through", "throughout", "thru", "thus", "to", "together", "too", "top", "toward", "towards", "twelve", "twenty", "two", "un", "under", "until", "up", "upon", "us", "very", "via", "was", "we", "well", "were", "what",
-                    "whatever", "when", "whence", "whenever", "where", "whereafter", "whereas", "whereby", "wherein", "whereupon", "wherever"}, StringSplitOptions.RemoveEmptyEntries);
-            List<string> ListOfPureWords = AfterWordsRemoval.ToList();
-            DocumentUpdated = new OneDocumentInvindex(doc.DocumentId, ListOfPureWords, doc.Frequences, doc.Positions);
+            DocumentUpdated = new OneDocumentInvindex(doc.DocumentId, documentTerms, doc.Frequences, doc.Positions);
             return DocumentUpdated;
         }
         private void SaveInvertedIndex(OneDocumentInvindex doc)
         {
-            conn = new OracleConnection(connectionString);
-            conn.Open();
-            OracleCommand cmd;
             for (int i = 0; i < doc.Terms.Count(); i++)
             {
                 string term = doc.Terms.ElementAt(i);
-                cmd = new OracleCommand();
-                cmd.Connection = conn;
-                cmd.CommandText = "INSERT_NEW_TERM_INVERTEDINDEX";
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.Add("Word", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = doc.Positions.Keys.ElementAt(i);
-                cmd.Parameters.Add("freq", OracleDbType.Int32, DBNull.Value, ParameterDirection.Input).Value = doc.Frequences[term];
-                cmd.Parameters.Add("pos", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = doc.Positions[term];
-                cmd.Parameters.Add("docID", OracleDbType.Int32, DBNull.Value, ParameterDirection.Input).Value = doc.DocumentId;
-                try
+                conn.Open();
+                if (TermInserted(term, "GetTermDetails"))
                 {
-                    cmd.ExecuteNonQuery();
+                    UpdateTerm(term, doc.Positions[term], doc.Frequences[term].ToString(), doc.DocumentId.ToString());
                 }
-                catch (Exception ex)
+                else
                 {
-                    MessageBox.Show(ex.Message);
+                    InsertTerm(term, doc.Positions[term], doc.Frequences[term].ToString(), doc.DocumentId.ToString());
                 }
+                conn.Close();
             }
-            MessageBox.Show("Save Inverted Indext to One Document Done !!");
+        }
+        private void InsertTerm(string term,string possition,string frequences,string documentID) {
+            OracleCommand cmd;
+            cmd = new OracleCommand();
+            cmd.Connection = conn;
+            cmd.CommandText = "INSERTNEWTERMINVERTEDINDEX";
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.Add("Word", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = term;
+            cmd.Parameters.Add("pos", OracleDbType.Clob, DBNull.Value, ParameterDirection.Input).Value =   possition;
+            cmd.Parameters.Add("freq", OracleDbType.Clob, DBNull.Value, ParameterDirection.Input).Value =  frequences;
+            cmd.Parameters.Add("docID", OracleDbType.Clob, DBNull.Value, ParameterDirection.Input).Value = documentID;
+            cmd.Parameters.Add("docNumbers", OracleDbType.Int32, DBNull.Value, ParameterDirection.Input).Value = 1;
+            try
+            {
+                cmd.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
+
+        private void UpdateTerm(string term, string NewPos, string NewFreq, string NewDocIDS) {
+            OracleCommand cmd;
+            cmd = new OracleCommand();
+            cmd.Connection = conn;
+            cmd.CommandText = "UpdateTermDetailsInvertedIndex";
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.Add("Word", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = term;
+            cmd.Parameters.Add("pos", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = NewPos;
+            cmd.Parameters.Add("freq", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value =  NewFreq;
+            cmd.Parameters.Add("docID", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = NewDocIDS;
+            try
+            {
+                cmd.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
+        private bool TermInserted(string term,string procedureName) {
+            OracleCommand cmd;
+            cmd = new OracleCommand();
+            cmd.Connection = conn;
+            cmd.CommandText = procedureName;
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.Add("word", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = term;
+            cmd.Parameters.Add("documentDetails", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
+            OracleDataReader dr = cmd.ExecuteReader();
+            if (dr.HasRows)
+            {
+                dr.Close();
+                return true;
+            }
+            else
+            {
+                dr.Close();
+                return false;
+            }
         }
     }
 }
