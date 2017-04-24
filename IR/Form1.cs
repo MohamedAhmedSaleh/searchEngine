@@ -406,17 +406,19 @@ namespace IR
         private void HandlingModule1(object obj)
         {
             Dictionary<int, List<string>> index = (Dictionary<int, List<string>>)obj;
-            //Dictionary<int, List<string>> index = (Dictionary<int, List<string>>)obj;
-            semaphore.WaitOne();
-            saveWordToDataBase(index);
-            semaphore.Release();
-            List<string> stemmers = stemWord(index.Values.ElementAt(0));
-            Dictionary<string, int> frequences = Frequences(stemmers);
-            Dictionary<string, string> positions = Positions(stemmers);
-            OneDocumentInvindex doc = new OneDocumentInvindex(index.Keys.ElementAt(0),stemmers.Distinct().ToList(), frequences, positions);
-            semaphore.WaitOne();
-            SaveInvertedIndex(StopWordsRemovals(doc));
-            semaphore.Release();
+            if (index != null)
+            {
+                semaphore.WaitOne();
+                saveWordToDataBase(index);
+                semaphore.Release();
+                List<string> stemmers = stemWord(index.Values.ElementAt(0));
+                Dictionary<string, int> frequences = Frequences(stemmers);
+                Dictionary<string, string> positions = Positions(stemmers);
+                OneDocumentInvindex doc = new OneDocumentInvindex(index.Keys.ElementAt(0), stemmers.Distinct().ToList(), frequences, positions);
+                semaphore.WaitOne();
+                SaveInvertedIndex(StopWordsRemovals(doc));
+                semaphore.Release();
+            }
         }
 
         private void saveWordToDataBase(Dictionary<int, List<string>> index)
