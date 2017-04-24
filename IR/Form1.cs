@@ -51,7 +51,7 @@ namespace IR
             conn = new OracleConnection(connectionString);
             stop  = new List<string>();
             conn.Open();
-            numberOfDocuments = 8000;
+            numberOfDocuments = 15000;
             ServicePointManager.Expect100Continue = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             toVisit.Enqueue("https://en.wikipedia.org/wiki/Main_Page");
@@ -84,7 +84,7 @@ namespace IR
 
         private void crawl_Click(object sender, EventArgs e)
         {
-            int numberOfThreads = 100;
+            int numberOfThreads = 1000;
             for (int i = 0; i < numberOfThreads; i++)
             {
                 Thread newthread = new Thread(new ThreadStart(crawler));
@@ -152,10 +152,14 @@ namespace IR
                             }
                         }
                         else
-                            semaphore.Release();
+                        {
+                            if (!released)
+                                semaphore.Release();
+                        }
                     }
                     catch (Exception ex)
                     {
+                        ;
                     }
                 }
 
@@ -258,8 +262,6 @@ namespace IR
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(ex.Message);
-
                 }
                 count++;
             }
@@ -288,14 +290,22 @@ namespace IR
             while (dr.Read())
             {
                 var id = Convert.ToInt32(dr["ID"]);
-                string dochtmlcontent = dr.GetString((1));
-
-                if ((dochtmlcontent.Contains("lang=en") || dochtmlcontent.Contains("lang={{locale}}") || dochtmlcontent.Contains(defaultstring2) || dochtmlcontent.Contains(defaultstring)))
+                try
                 {
-                    EnglishContent.Enqueue(dochtmlcontent);
-                    count++;
+                    string dochtmlcontent = dr.GetString(1);
+
+                    if ((dochtmlcontent.Contains("lang=en") || dochtmlcontent.Contains("lang={{locale}}") || dochtmlcontent.Contains(defaultstring2) || dochtmlcontent.Contains(defaultstring)))
+                    {
+                        EnglishContent.Enqueue(dochtmlcontent);
+                        count++;
+                    }
+                    else
+                    {
+                        count2++;
+                        deletThisDocument(id);
+                    }
                 }
-                else
+                catch
                 {
                     count2++;
                     deletThisDocument(id);
@@ -306,6 +316,7 @@ namespace IR
         private void deletThisDocument(Int32 id)
         {
             conn = new OracleConnection(connectionString);
+            conn.Open();
             OracleCommand cmd;
             cmd = new OracleCommand();
             cmd.Connection = conn;
@@ -313,6 +324,7 @@ namespace IR
             cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.Add("id", OracleDbType.Int32, DBNull.Value, ParameterDirection.Input).Value = id;
             cmd.ExecuteNonQuery();
+            conn.Close();
         }
 
         private void button2_Click(object sender, EventArgs e)
@@ -381,24 +393,30 @@ namespace IR
                         threads.Remove(threads[i]);
                 if (contentTokens.Count > 0)
                 {
-                    /*Thread thread = new Thread(new ParameterizedThreadStart(HandlingModule1));
+                    Thread thread = new Thread(new ParameterizedThreadStart(HandlingModule1));
                     thread.IsBackground = true;
-                    thread.Start(contentTokens.Dequeue());*/
-                    HandlingModule1(contentTokens.Dequeue());
+                    threads.Add(thread);
+                    thread.Start(contentTokens.Dequeue());
+                    //HandlingModule1(contentTokens.Dequeue());
                 }
             }
             MessageBox.Show("Save Inverted Indext to One Document Done !!");
         }
 
-        private void HandlingModule1(Dictionary<int, List<string>> index)
+        private void HandlingModule1(object obj)
         {
+            Dictionary<int, List<string>> index = (Dictionary<int, List<string>>)obj;
             //Dictionary<int, List<string>> index = (Dictionary<int, List<string>>)obj;
+            semaphore.WaitOne();
             saveWordToDataBase(index);
+            semaphore.Release();
             List<string> stemmers = stemWord(index.Values.ElementAt(0));
             Dictionary<string, int> frequences = Frequences(stemmers);
             Dictionary<string, string> positions = Positions(stemmers);
             OneDocumentInvindex doc = new OneDocumentInvindex(index.Keys.ElementAt(0),stemmers.Distinct().ToList(), frequences, positions);
+            semaphore.WaitOne();
             SaveInvertedIndex(StopWordsRemovals(doc));
+            semaphore.Release();
         }
 
         private void saveWordToDataBase(Dictionary<int, List<string>> index)
