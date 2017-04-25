@@ -397,7 +397,6 @@ namespace IR
                     thread.IsBackground = true;
                     threads.Add(thread);
                     thread.Start(contentTokens.Dequeue());
-                    //HandlingModule1(contentTokens.Dequeue());
                 }
             }
             MessageBox.Show("Save Inverted Indext to One Document Done !!");
@@ -454,7 +453,6 @@ namespace IR
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show(ex.Message);
                     }
                 }
                 conn.Close();
