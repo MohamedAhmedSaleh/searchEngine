@@ -719,7 +719,7 @@ namespace IR
                     thread.Start(Terms.Dequeue());
                 }
             }
-            MessageBox.Show("Soundex Has Finished");
+            MessageBox.Show("Soundex Finished ! ");
             conn.Close();
         }
     }
