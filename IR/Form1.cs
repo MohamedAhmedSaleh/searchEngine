@@ -26,7 +26,8 @@ namespace IR
         private Queue<String> specificContent; // specificContentFromhtml
         private Queue<Dictionary<Int32, List<string>>> contentTokens;
         private Queue<String> EnglishContent;
-        private Queue<String> Terms;
+        private Queue<String> SoundexTerms;
+        private Queue<String> BigramsTerms;
 
         HtmlToText htmltotext;
         int numberOfDocuments;
@@ -52,8 +53,10 @@ namespace IR
             threads = new List<Thread>();
             documentTerms = new List<string>();
             conn = new OracleConnection(connectionString);
-            stop  = new List<string>();
-            Terms = new Queue<string>();
+            stop = new List<string>();
+            SoundexTerms = new Queue<string>();
+            BigramsTerms = new Queue<string>();
+
             conn.Open();
             numberOfDocuments = 15000;
             ServicePointManager.Expect100Continue = true;
@@ -274,7 +277,7 @@ namespace IR
         }
         private void addCrawlerResultsToDatabase()
         {
-            
+
             int count = 0;
             OracleCommand cmd;
 
@@ -536,8 +539,10 @@ namespace IR
         {
             OneDocumentInvindex DocumentUpdated;
             List<string> documentTerms = doc.Terms;
-            for (int i = 0; i < documentTerms.Count; i++) {
-                if (stop.Contains(documentTerms[i])) {
+            for (int i = 0; i < documentTerms.Count; i++)
+            {
+                if (stop.Contains(documentTerms[i]))
+                {
                     documentTerms.RemoveAt(i);
                 }
             }
@@ -561,15 +566,16 @@ namespace IR
                 conn.Close();
             }
         }
-        private void InsertTerm(string term,string possition,string frequences,string documentID) {
+        private void InsertTerm(string term, string possition, string frequences, string documentID)
+        {
             OracleCommand cmd;
             cmd = new OracleCommand();
             cmd.Connection = conn;
             cmd.CommandText = "INSERTNEWTERMINVERTEDINDEX";
             cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.Add("Word", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = term;
-            cmd.Parameters.Add("pos", OracleDbType.Clob, DBNull.Value, ParameterDirection.Input).Value =   possition;
-            cmd.Parameters.Add("freq", OracleDbType.Clob, DBNull.Value, ParameterDirection.Input).Value =  frequences;
+            cmd.Parameters.Add("pos", OracleDbType.Clob, DBNull.Value, ParameterDirection.Input).Value = possition;
+            cmd.Parameters.Add("freq", OracleDbType.Clob, DBNull.Value, ParameterDirection.Input).Value = frequences;
             cmd.Parameters.Add("docID", OracleDbType.Clob, DBNull.Value, ParameterDirection.Input).Value = documentID;
             cmd.Parameters.Add("docNumbers", OracleDbType.Int32, DBNull.Value, ParameterDirection.Input).Value = 1;
             try
@@ -582,7 +588,8 @@ namespace IR
             }
         }
 
-        private void UpdateTerm(string term, string NewPos, string NewFreq, string NewDocIDS) {
+        private void UpdateTerm(string term, string NewPos, string NewFreq, string NewDocIDS)
+        {
             OracleCommand cmd;
             cmd = new OracleCommand();
             cmd.Connection = conn;
@@ -590,7 +597,7 @@ namespace IR
             cmd.CommandType = CommandType.StoredProcedure;
             cmd.Parameters.Add("Word", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = term;
             cmd.Parameters.Add("pos", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = NewPos;
-            cmd.Parameters.Add("freq", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value =  NewFreq;
+            cmd.Parameters.Add("freq", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = NewFreq;
             cmd.Parameters.Add("docID", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = NewDocIDS;
             try
             {
@@ -601,7 +608,7 @@ namespace IR
                 MessageBox.Show(ex.Message);
             }
         }
-       
+
         private void button3_Click(object sender, EventArgs e)
         {
             conn = new OracleConnection(connectionString);
@@ -615,7 +622,7 @@ namespace IR
             OracleDataReader dr = cmd.ExecuteReader();
             while (dr.Read())
             {
-                Terms.Enqueue(dr.GetString(0));
+                SoundexTerms.Enqueue(dr.GetString(0));
             }
             dr.Close();
             Thread thread = new Thread(new ThreadStart(handleSoundexThreads));
@@ -650,10 +657,11 @@ namespace IR
             else if (soundex.Length > 4)
                 soundex = soundex.Substring(0, 4);
             semaphore.WaitOne();
-            AddSoundexDB(soundex,term.ToLower());
+            AddSoundexDB(soundex, term.ToLower());
             semaphore.Release();
         }
-        private void AddSoundexDB(string soundex,string term) {
+        private void AddSoundexDB(string soundex, string term)
+        {
             OracleCommand cmd;
             cmd = new OracleCommand();
             cmd.Connection = conn;
@@ -664,7 +672,8 @@ namespace IR
                 cmd.Parameters.Add("soundex_id", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = soundex;
                 cmd.Parameters.Add("Newterm", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = term;
             }
-            else {
+            else
+            {
                 cmd.CommandText = "INSERTNEWTERMSOUNDEX";
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.Parameters.Add("newSoundex", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = soundex;
@@ -702,28 +711,118 @@ namespace IR
         }
         private void handleSoundexThreads()
         {
-            while (threads.Count != 0 || Terms.Count > 0)
+            while (threads.Count != 0 || SoundexTerms.Count > 0)
             {
                 if (label2.InvokeRequired)
                     label2.Invoke(new MethodInvoker(delegate
                     {
-                        label2.Text = "Soundex Count : " + Terms.Count;
+                        label2.Text = "Soundex Count : " + SoundexTerms.Count;
                     }));
                 else
-                    label2.Text = "Soundex Count: " + Terms.Count;
+                    label2.Text = "Soundex Count: " + SoundexTerms.Count;
                 for (int i = 0; i < threads.Count; i++)
                     if (!threads[i].IsAlive)
                         threads.Remove(threads[i]);
-                if (Terms.Count > 0)
+                if (SoundexTerms.Count > 0)
                 {
                     Thread thread = new Thread(new ParameterizedThreadStart(Soundex));
                     thread.IsBackground = true;
                     threads.Add(thread);
-                    thread.Start(Terms.Dequeue());
+                    thread.Start(SoundexTerms.Dequeue());
                 }
             }
             MessageBox.Show("Soundex Finished ! ");
             conn.Close();
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            conn = new OracleConnection(connectionString);
+            conn.Open();
+            OracleCommand cmd;
+            cmd = new OracleCommand();
+            cmd.Connection = conn;
+            cmd.CommandText = "Get_All_Terms";
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.Add("terms", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
+            OracleDataReader dr = cmd.ExecuteReader();
+            while (dr.Read())
+            {
+                BigramsTerms.Enqueue(dr.GetString(0));
+            }
+            dr.Close();
+            Thread thread = new Thread(new ThreadStart(handleBigramThreads));
+            thread.IsBackground = true;
+            thread.Start();
+        }
+        private void handleBigramThreads()
+        {
+            while (threads.Count != 0 || BigramsTerms.Count > 0)
+            {
+                if (label3.InvokeRequired)
+                    label3.Invoke(new MethodInvoker(delegate
+                    {
+                        label3.Text = "Bigrams Count : " + BigramsTerms.Count;
+                    }));
+                else
+                    label3.Text = "Bigrams Count : " + BigramsTerms.Count;
+                for (int i = 0; i < threads.Count; i++)
+                    if (!threads[i].IsAlive)
+                        threads.Remove(threads[i]);
+                if (BigramsTerms.Count > 0)
+                {
+                    Thread thread = new Thread(new ParameterizedThreadStart(Bigram));
+                    thread.IsBackground = true;
+                    threads.Add(thread);
+                    thread.Start(BigramsTerms.Dequeue());
+                }
+            }
+            MessageBox.Show("Bigram Finished ! ");
+            conn.Close();
+        }
+        private void Bigram(object obj)
+        {
+            string term = (string)obj;
+            string[] Bigrams = new string[term.Length + 1];
+            Bigrams[0] = "$" + term[0].ToString();
+            for (int i = 0; i < term.Length - 1; i++)
+                Bigrams[i + 1] = term[i].ToString() + term[i + 1].ToString();
+            Bigrams[term.Length] = term[term.Length - 1].ToString() + "$";
+
+            semaphore.WaitOne();
+            for (int i = 0; i < Bigrams.Length; i++)
+            {
+                AddBigramDB(Bigrams[i], term.ToLower());
+            }
+            semaphore.Release();
+        }
+        private void AddBigramDB(string gram, string term)
+        {
+            OracleCommand cmd;
+            cmd = new OracleCommand();
+            cmd.Connection = conn;
+            if (TermInserted(gram, "GetGramDetails"))
+            {
+                cmd.CommandText = "UpdateGram";
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.Add("gram_value", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = gram;
+                cmd.Parameters.Add("Newterm", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = term;
+            }
+            else
+            {
+                cmd.CommandText = "INSERTNEWTERMBIGRAM";
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.Add("newGram", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = gram;
+                cmd.Parameters.Add("term", OracleDbType.Clob, DBNull.Value, ParameterDirection.Input).Value = term;
+            }
+            try
+            {
+                cmd.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
         }
     }
 }
