@@ -642,8 +642,11 @@ namespace IR
             soundex = soundex.Replace("0", string.Empty);
 
             if (soundex.Length < 4)
-                for (int i = 0; i <= 4 - soundex.Length; i++)
+            {
+                int temp = 4 - soundex.Length;
+                for (int i = 0; i < temp; i++)
                     soundex += '0';
+            }
             else if (soundex.Length > 4)
                 soundex = soundex.Substring(0, 4);
             semaphore.WaitOne();
