@@ -26,6 +26,8 @@ namespace IR
         private Queue<String> specificContent; // specificContentFromhtml
         private Queue<Dictionary<Int32, List<string>>> contentTokens;
         private Queue<String> EnglishContent;
+        private Queue<String> Terms;
+
         HtmlToText htmltotext;
         int numberOfDocuments;
         string connectionString = "Data source=orcl; User Id=scott; Password=tiger;";
@@ -33,6 +35,7 @@ namespace IR
         List<Thread> threads;
         Semaphore semaphore;
         List<string> documentTerms;
+        Dictionary<char, char> indexes;
         List<string> stop;
 
         public Form1()
@@ -50,6 +53,7 @@ namespace IR
             documentTerms = new List<string>();
             conn = new OracleConnection(connectionString);
             stop  = new List<string>();
+            Terms = new Queue<string>();
             conn.Open();
             numberOfDocuments = 15000;
             ServicePointManager.Expect100Continue = true;
@@ -80,6 +84,33 @@ namespace IR
             {
                 stop.Add(StopWords[i]);
             }
+            indexes = new Dictionary<char, char>();
+            indexes.Add('A', '0');
+            indexes.Add('E', '0');
+            indexes.Add('O', '0');
+            indexes.Add('U', '0');
+            indexes.Add('I', '0');
+            indexes.Add('H', '0');
+            indexes.Add('W', '0');
+            indexes.Add('Y', '0');
+            indexes.Add('B', '1');
+            indexes.Add('F', '1');
+            indexes.Add('P', '1');
+            indexes.Add('V', '1');
+            indexes.Add('C', '2');
+            indexes.Add('J', '2');
+            indexes.Add('G', '2');
+            indexes.Add('K', '2');
+            indexes.Add('Q', '2');
+            indexes.Add('S', '2');
+            indexes.Add('X', '2');
+            indexes.Add('Z', '2');
+            indexes.Add('D', '3');
+            indexes.Add('T', '3');
+            indexes.Add('L', '4');
+            indexes.Add('N', '5');
+            indexes.Add('M', '5');
+            indexes.Add('R', '6');
         }
 
         private void crawl_Click(object sender, EventArgs e)
@@ -570,7 +601,83 @@ namespace IR
                 MessageBox.Show(ex.Message);
             }
         }
-        private bool TermInserted(string term,string procedureName) {
+       
+        private void button3_Click(object sender, EventArgs e)
+        {
+            conn = new OracleConnection(connectionString);
+            conn.Open();
+            OracleCommand cmd;
+            cmd = new OracleCommand();
+            cmd.Connection = conn;
+            cmd.CommandText = "Get_All_Terms";
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.Add("terms", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
+            OracleDataReader dr = cmd.ExecuteReader();
+            while (dr.Read())
+            {
+                Terms.Enqueue(dr.GetString(0));
+            }
+            dr.Close();
+            Thread thread = new Thread(new ThreadStart(handleSoundexThreads));
+            thread.IsBackground = true;
+            thread.Start();
+        }
+        private void Soundex(object obj)
+        {
+            string term = (string)obj;
+            term = term.ToUpper();
+            string soundex = "";
+            soundex += term[0];
+            for (int i = 1; i < term.Length; i++)
+            {
+                soundex += indexes[term[i]];
+            }
+            for (int i = 1; i < soundex.Length - 1; i++)
+            {
+                if (soundex[i] == soundex[i + 1])
+                {
+                    soundex = soundex.Remove(i, 1);
+                }
+            }
+            soundex = soundex.Replace("0", string.Empty);
+
+            if (soundex.Length < 4)
+                for (int i = 0; i <= 4 - soundex.Length; i++)
+                    soundex += '0';
+            else if (soundex.Length > 4)
+                soundex = soundex.Substring(0, 4);
+            semaphore.WaitOne();
+            AddSoundexDB(soundex,term.ToLower());
+            semaphore.Release();
+        }
+        private void AddSoundexDB(string soundex,string term) {
+            OracleCommand cmd;
+            cmd = new OracleCommand();
+            cmd.Connection = conn;
+            if (TermInserted(soundex, "GetSoundexDetails"))
+            {
+                cmd.CommandText = "UpdateTermSoundex";
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.Add("soundex_id", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = soundex;
+                cmd.Parameters.Add("Newterm", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = term;
+            }
+            else {
+                cmd.CommandText = "INSERTNEWTERMSOUNDEX";
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.Add("newSoundex", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = soundex;
+                cmd.Parameters.Add("term", OracleDbType.Clob, DBNull.Value, ParameterDirection.Input).Value = term;
+            }
+            try
+            {
+                cmd.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
+        private bool TermInserted(string term, string procedureName)
+        {
             OracleCommand cmd;
             cmd = new OracleCommand();
             cmd.Connection = conn;
@@ -589,6 +696,31 @@ namespace IR
                 dr.Close();
                 return false;
             }
+        }
+        private void handleSoundexThreads()
+        {
+            while (threads.Count != 0 || Terms.Count > 0)
+            {
+                if (label2.InvokeRequired)
+                    label2.Invoke(new MethodInvoker(delegate
+                    {
+                        label2.Text = "Soundex Count : " + Terms.Count;
+                    }));
+                else
+                    label2.Text = "Soundex Count: " + Terms.Count;
+                for (int i = 0; i < threads.Count; i++)
+                    if (!threads[i].IsAlive)
+                        threads.Remove(threads[i]);
+                if (Terms.Count > 0)
+                {
+                    Thread thread = new Thread(new ParameterizedThreadStart(Soundex));
+                    thread.IsBackground = true;
+                    threads.Add(thread);
+                    thread.Start(Terms.Dequeue());
+                }
+            }
+            MessageBox.Show("Soundex Has Finished");
+            conn.Close();
         }
     }
 }
