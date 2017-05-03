@@ -540,7 +540,7 @@ namespace IR
             OneDocumentInvindex DocumentUpdated;
             List<string> documentTerms = new List<string>();
             List<string> documentTermsTemp = doc.Terms;
-            for (int i = 0; i < documentTerms.Count; i++)
+            for (int i = 0; i < documentTermsTemp.Count; i++)
             {
                 if (!stop.Contains(documentTermsTemp[i]))
                 {
