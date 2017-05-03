@@ -538,12 +538,13 @@ namespace IR
         private OneDocumentInvindex StopWordsRemovals(OneDocumentInvindex doc)
         {
             OneDocumentInvindex DocumentUpdated;
-            List<string> documentTerms = doc.Terms;
+            List<string> documentTerms = new List<string>();
+            List<string> documentTermsTemp = doc.Terms;
             for (int i = 0; i < documentTerms.Count; i++)
             {
-                if (stop.Contains(documentTerms[i]))
+                if (!stop.Contains(documentTermsTemp[i]))
                 {
-                    documentTerms.RemoveAt(i);
+                    documentTerms.Add(documentTermsTemp[i]);
                 }
             }
             DocumentUpdated = new OneDocumentInvindex(doc.DocumentId, documentTerms, doc.Frequences, doc.Positions);
