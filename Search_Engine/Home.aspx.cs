@@ -94,86 +94,127 @@ namespace Search_Engine
 
                     if (WrongWords.Count > 0)
                     {
-                        List<string> Allgrams = new List<string>();
-                        List<List<string>> AllTerms = new List<List<string>>();
+                        List<List<string>> Allgrams = new List<List<string>>();
+                        List<string> GramsTerm = new List<string>();
+                        List<List<List<string>>> AllTerms = new List<List<List<string>>>();
 
                         foreach (string word in WrongWords)
                         {
                             List<string> gramsWord = getBigrams(word);
                             foreach (string gr in gramsWord)
                             {
-                                if (!Allgrams.Contains(gr))
-                                    Allgrams.Add(gr);
+                                if (!gramsWord.Contains(gr))
+                                    gramsWord.Add(gr);
                             }
+                            Allgrams.Add(gramsWord);
                         }
-                        foreach (string gram in Allgrams)
+                        foreach (List<string> GramTerms in Allgrams)
                         {
-                            cmd = new OracleCommand();
-                            cmd.Connection = conn;
-                            cmd.CommandText = "GetTermsGram";
-                            cmd.CommandType = CommandType.StoredProcedure;
-                            cmd.Parameters.Add("gr", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = gram;
-                            cmd.Parameters.Add("termsofsoundex", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
-                            dr = cmd.ExecuteReader();
-                            while (dr.Read())
+                            List<List<string>> terms = new List<List<string>>();
+                            foreach (string gram in GramTerms)
                             {
-                                AllTerms.Add(dr.GetValue(0).ToString().Split('#').ToList());
+                                cmd = new OracleCommand();
+                                cmd.Connection = conn;
+                                cmd.CommandText = "GetTermsGram";
+                                cmd.CommandType = CommandType.StoredProcedure;
+                                cmd.Parameters.Add("gr", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = gram;
+                                cmd.Parameters.Add("termsofsoundex", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
+                                dr = cmd.ExecuteReader();
+                                if (dr.Read())
+                                {
+                                    terms.Add(dr.GetValue(0).ToString().Split('#').ToList());
+                                }
                             }
+                            AllTerms.Add(terms);
                         }
                         dr.Close();
-                        List<List<string>> FilterdWordsSW = new List<List<string>>();
+                        List<List<List<string>>> FilterdWordsSW = new List<List<List<string>>>();
                         foreach (string term in WrongWords)
                         {
-                            foreach (List<string> words in AllTerms)
+                            List<List<string>> WordsWeights = new List<List<string>>();
+                            foreach (List<List<string>> Listwords in AllTerms)
                             {
                                 //Calculate smilarity weight between current word and input query
                                 //If smilarity weight > 0.45
-                                if (calculateSimilarityWeight(words, term).Count > 0)
-                                    FilterdWordsSW.Add(calculateSimilarityWeight(words, term).ToList());
+                                foreach (List<string> words in Listwords)
+                                {
+                                    List<string> weights = calculateSimilarityWeight(words, term);
+                                    if (calculateSimilarityWeight(words, term).Count > 0)
+                                        WordsWeights.Add(weights);
+                                }
                             }
+                            FilterdWordsSW.Add(WordsWeights);
                         }
-                        Dictionary<string, int> FilterdWordsED = new Dictionary<string, int>();
+                        List<Dictionary<string, int>> EaWoDicED = new List<Dictionary<string, int>>();
+                        int termIndex = 0;
                         foreach (string term in WrongWords)
                         {
-                            foreach (List<string> fiterWordsInTerm in FilterdWordsSW)
+                            Dictionary<string, int> FilterdWordsED = new Dictionary<string, int>();
+                            foreach (List<string> fiterWordsInTerm in FilterdWordsSW.ElementAt(termIndex))
                             {
                                 foreach (string word in fiterWordsInTerm)
                                 {
                                     FilterdWordsED[word + '#' + term] = editDistance(word, term);
                                 }
                             }
+                            termIndex++;
+                            EaWoDicED.Add(FilterdWordsED);
                         }
+                        List<Dictionary<string, int>> dctTempList = new List<Dictionary<string, int>>();
                         Dictionary<string, int> dctTemp = new Dictionary<string, int>();
                         List<string> recomendationWords = new List<string>();
-                        foreach (KeyValuePair<string, int> pair in FilterdWordsED.OrderBy(key => key.Value))
+                        for (int i = 0; i < EaWoDicED.Count; i++)
                         {
-                            dctTemp.Add(pair.Key, pair.Value);
+                            dctTemp = new Dictionary<string, int>();
+                            foreach (KeyValuePair<string, int> pair in EaWoDicED.ElementAt(i).OrderBy(key => key.Value))
+                            {
+                                dctTemp.Add(pair.Key, pair.Value);
+                            }
+                            dctTempList.Add(dctTemp);
                         }
+
                         foreach (string word in WrongWords)
                         {
-                            foreach (string filterdWord in dctTemp.Keys)
+                            foreach (Dictionary<string, int> temp in dctTempList)
                             {
-                                string[] Merge = filterdWord.Split('#');
-                                if (Merge[1] == word)
+                                int counter = 0;
+                                for (int i = 0; i < temp.Count(); i++)
                                 {
-                                    recomendationWords.Add(Merge[0]);
-                                    break;
+                                    string[] Merge = temp.ElementAt(i).Key.Split('#');
+                                    if (Merge[1] == word)
+                                    {
+                                        recomendationWords.Add(Merge[0]);
+                                        counter++;
+                                        if (counter == 2)
+                                            break;
+                                    }
                                 }
                             }
                         }
-                        List<string> TrueQuery = new List<string>();
+                        List<string> EaFilterTerm = new List<string>();
+                        List<string> TrueQuery;
+                        List<List<string>> lstMaster = new List<List<string>>();
+                        IEnumerable<string> lstRes = new List<string> { null };
                         if (recomendationWords.Count > 1)
                         {
-                            string query = "";
-                            for (int i = 0; i < recomendationWords.Count; i++)
-                                query = query + recomendationWords[i] + " ";
-                            TrueQuery.Add(query);
+                            for (int i = 0; i < recomendationWords.Count(); i+=2) {
+                                TrueQuery = new List<string>();
+                                for (int j = 0; j < 2; j++) {
+                                    TrueQuery.Add(recomendationWords.ElementAt(i + j));
+                                }
+                                lstMaster.Add(TrueQuery);
+                            }
+                            foreach (var list in lstMaster)
+                            {
+                                // cross join the current result with each member of the next list
+                                lstRes = lstRes.SelectMany(o => list.Select(s => o + ' ' + s));
+                            }
                         }
                         else {
-                            TrueQuery = recomendationWords;
+                            lstRes = recomendationWords;
                         }
                         ListBox1.Visible = true;
-                        ListBox1.DataSource = TrueQuery;
+                        ListBox1.DataSource = lstRes;
                         ListBox1.DataBind();
                     }
                     else if (WrongWords.Count == 0) {

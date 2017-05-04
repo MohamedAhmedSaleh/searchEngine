@@ -32,7 +32,6 @@
                 }
             </style>
 
-            <h1 style="text-align: center; width: 1267px; margin-left: 64px;">Welcome To Our Search Engine</h1>
             <img alt="Search" src="../search.jpg" class="img-style" /><br />
             <br />
             <br />
