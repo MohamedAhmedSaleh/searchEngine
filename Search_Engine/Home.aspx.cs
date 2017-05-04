@@ -34,6 +34,9 @@ namespace Search_Engine
         {
             // Initiate Variables I need to use
             init();
+            SearchResultsText.Visible = false;
+            searchResults.Visible = false;
+            ListBox1.Visible = false;
         }
 
         protected void Search_Click(object sender, EventArgs e)
@@ -46,22 +49,34 @@ namespace Search_Engine
             {
                 RequiredFieldValidator2.Visible = false;
                 ExactSearch = false;
-                // Know Search Type Multi word or exactSearch
-                if (SearchWords.Text[0] == '\"' && SearchWords.Text[SearchWords.Text.Length - 1] == '\"')
+                SearchResultsText.Visible = true;
+                string selectedValue = RadioButtonList1.SelectedValue;
+                if (selectedValue == "Soundex")
                 {
-                    ExactSearch = true;
+                    SearchResultsText.InnerText = "Did you Mean :";
+                    string soundex = Soundex(SearchWords.Text.ToString());
+                    List<string> terms = GetTermsSoundex(soundex);
+                    Dictionary<string,int> rankdic = RankingTermsSoundex(terms, SearchWords.Text.ToString());
+                    Dictionary<string, int> dctTemp = new Dictionary<string, int>();
+                    List<string> recomendationWords = new List<string>();
+                    foreach (KeyValuePair<string, int> pair in rankdic.OrderBy(key => key.Value))
+                    {
+                        dctTemp.Add(pair.Key, pair.Value);
+                    }
+                    for (int i = 0; i < dctTemp.Count(); i++) {
+                        recomendationWords.Add(dctTemp.ElementAt(i).Key);
+                    }
+                    ListBox1.Visible = true;
+                    ListBox1.DataSource = recomendationWords;
+                    ListBox1.DataBind();
                 }
-                // Apply Tokenization and linguistics algorithms .
-                searchKeywords = TokenLinguistics(SearchWords.Text);
-                // If Query One Word ... Ranking with Frequency
-                if (searchKeywords.Count == 1)
+                else if (selectedValue == "spelling correction")
                 {
-                    SearchOneWord(searchKeywords[0]);
+                    SearchResultsText.InnerText = "Did you Mean :";
                 }
-                // Query Multi Word ... Ranking In Intersection Documents with Distance Between Words and other Frequences 
                 else
                 {
-                    SearchMultiWord(searchKeywords);
+                    startSearch();
                 }
             }
         }
@@ -122,6 +137,29 @@ namespace Search_Engine
             docID = new List<int>();
             URLs = new List<string>();
             All_Keys = new List<List<string>>();
+        }
+        private void startSearch() {
+            SearchResultsText.Visible = true;
+            SearchResultsText.InnerText = "Search Results : ";
+            ListBox1.Visible = false;
+            searchResults.Visible = true;
+            // Know Search Type Multi word or exactSearch
+            if (SearchWords.Text[0] == '\"' && SearchWords.Text[SearchWords.Text.Length - 1] == '\"')
+            {
+                ExactSearch = true;
+            }
+            // Apply Tokenization and linguistics algorithms .
+            searchKeywords = TokenLinguistics(SearchWords.Text);
+            // If Query One Word ... Ranking with Frequency
+            if (searchKeywords.Count == 1)
+            {
+                SearchOneWord(searchKeywords[0]);
+            }
+            // Query Multi Word ... Ranking In Intersection Documents with Distance Between Words and other Frequences 
+            else
+            {
+                SearchMultiWord(searchKeywords);
+            }
         }
         private List<string> TokenLinguistics(string query)
         {
@@ -411,6 +449,30 @@ namespace Search_Engine
                 soundex = soundex.Substring(0, 3);
             return soundex;
         }
+        private List<string> GetTermsSoundex(string soundex) {
+            string terms = "";
+            cmd = new OracleCommand();
+            cmd.Connection = conn;
+            cmd.CommandText = "getTermsSoundex";
+            cmd.CommandType = CommandType.StoredProcedure;
+            cmd.Parameters.Add("soun", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = soundex;
+            cmd.Parameters.Add("termsofsoundex", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
+            dr = cmd.ExecuteReader();
+            if (dr.Read())
+            {
+               terms = dr.GetValue(0).ToString();
+            }
+            dr.Close();
+            return terms.Split('#').ToList();
+        }
+        private Dictionary<string, int> RankingTermsSoundex(List<string> terms, string query) {
+            Dictionary<string, int> rankDic = new Dictionary<string, int>();
+            foreach (string term in terms) {
+                int dis = editDistance(term, query);
+                rankDic[term] = dis;
+            }
+            return rankDic;
+        }
         // Calc Average Distance between words in one document
         private double distance(List<int> pos1, List<int> pos2)
         {
@@ -514,6 +576,15 @@ namespace Search_Engine
                 }
             }
             return d[d.GetUpperBound(0), d.GetUpperBound(1)];
+        }
+ 
+        protected void ListBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (RadioButtonList1.SelectedValue == "Soundex" || RadioButtonList1.SelectedValue == "spelling correction")
+            {
+                SearchWords.Text = ListBox1.SelectedValue.ToString();
+                startSearch();
+            }
         }
     }
 }
