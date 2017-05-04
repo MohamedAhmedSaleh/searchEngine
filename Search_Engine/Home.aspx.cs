@@ -81,13 +81,12 @@ namespace Search_Engine
                     List<string> TrueWords = InInvertedIndex(searchKeyWords2);
                     List<string> WrongWords = new List<string>();
                     List<int> WrongIndexs = new List<int>();
-                    for (int i = 0; i < TrueWords.Count(); i++)
+                    for (int i = 0; i < searchKeyWords2.Count(); i++)
                     {
-                        if (!searchKeyWords2.Contains(TrueWords[i]))
+                        if (!TrueWords.Contains(searchKeyWords2[i]))
                         {
-                            int index = searchKeyWords2.IndexOf(TrueWords[i]);
-                            WrongWords.Add(searchKeyWords[index]);
-                            WrongIndexs.Add(index);
+                            WrongWords.Add(searchKeyWords[i]);
+                            WrongIndexs.Add(i);
                         }
                     }
                     if(TrueWords.Count == 0 && WrongWords.Count == 0)
@@ -152,21 +151,29 @@ namespace Search_Engine
                         }
                         foreach (string word in WrongWords)
                         {
-                            int counter = 0;
                             foreach (string filterdWord in dctTemp.Keys)
                             {
                                 string[] Merge = filterdWord.Split('#');
                                 if (Merge[1] == word)
                                 {
                                     recomendationWords.Add(Merge[0]);
-                                    counter++;
-                                    if (counter >= 2)
-                                        break;
+                                    break;
                                 }
                             }
                         }
+                        List<string> TrueQuery = new List<string>();
+                        if (recomendationWords.Count > 1)
+                        {
+                            string query = "";
+                            for (int i = 0; i < recomendationWords.Count; i++)
+                                query = query + recomendationWords[i] + " ";
+                            TrueQuery.Add(query);
+                        }
+                        else {
+                            TrueQuery = recomendationWords;
+                        }
                         ListBox1.Visible = true;
-                        ListBox1.DataSource = recomendationWords;
+                        ListBox1.DataSource = TrueQuery;
                         ListBox1.DataBind();
                     }
                     else if (WrongWords.Count == 0) {
