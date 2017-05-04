@@ -40,7 +40,6 @@
             <asp:RequiredFieldValidator ID="RequiredFieldValidator2" runat="server" ControlToValidate="SearchWords" ForeColor="Red" CssClass="searchBox" EnableClientScript="False" ValidateRequestMode="Enabled">Please enter text to search for</asp:RequiredFieldValidator>
             <asp:RadioButtonList ID="RadioButtonList1" runat="server" CssClass="radios" Width="164px">
                 <asp:ListItem Text="Soundex" Value="Soundex" />
-                <asp:ListItem Text="Spelling Correction" Value="spelling correction" />
             </asp:RadioButtonList>
             <h3 id="SearchResultsText" runat="server" style="margin-left: 120px">Search Results:</h3>
             <asp:DataList ID="searchResults" runat="server" Style="margin-left: 120px" CellPadding="4" ForeColor="#333333">
