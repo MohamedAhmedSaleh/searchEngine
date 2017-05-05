@@ -151,12 +151,12 @@ namespace Search_Engine
                 OracleCommand cmd;
                 cmd = new OracleCommand();
                 cmd.Connection = conn;
-                cmd.CommandText = "GetTermDetails";
+                cmd.CommandText = "GetTermDetailsBefStem";
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.Parameters.Add("word", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = term;
                 cmd.Parameters.Add("documentDetails", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
                 OracleDataReader dr = cmd.ExecuteReader();
-                if (dr.HasRows)
+                if (dr.Read())
                     TrueWords.Add(term);
             }
             return TrueWords;
@@ -171,7 +171,7 @@ namespace Search_Engine
             if (SearchWords.Text[0] == '\"' && SearchWords.Text[SearchWords.Text.Length - 1] == '\"')
                 ExactSearch = true;
             // Apply Tokenization and linguistics algorithms .
-            searchKeywords = TokenLinguistics(SearchWords.Text, true);
+            searchKeywords = TokenLinguistics(SearchWords.Text, true,true);
             // If Query One Word ... Ranking with Frequency
             if (searchKeywords.Count == 1)
                 SearchOneWord(searchKeywords[0]);
@@ -179,7 +179,7 @@ namespace Search_Engine
             else
                 SearchMultiWord(searchKeywords);
         }
-        private List<string> TokenLinguistics(string query, bool stemming)
+        private List<string> TokenLinguistics(string query, bool stemming,bool remstopwords)
         {
             searchKeywords = new List<string>();
             // split commas , dots and Remove any punctuation character from the word 
@@ -189,9 +189,15 @@ namespace Search_Engine
                     ,"ال","ا","آ","ٱ","إ","أ","ل","ك","ط","ظ","م","ء","ق","خ","ع","ف","ج","ح","ش","س","غ","ص","ذ","د","ز","ر","ء","ؤ","ّ",
                     "و","ض","ب","ت","ث","ن","ي","ئ","ى","ه","ة"}, StringSplitOptions.RemoveEmptyEntries).ToList();
             // Remove Stop Words
-            for (int i = 0; i < searchKeywordsSplited.Count; i++)
-                if (!stopWords.Contains(searchKeywordsSplited[i]))
-                    searchKeywords.Add(searchKeywordsSplited.ElementAt(i));
+            if (remstopwords)
+            {
+                for (int i = 0; i < searchKeywordsSplited.Count; i++)
+                    if (!stopWords.Contains(searchKeywordsSplited[i]))
+                        searchKeywords.Add(searchKeywordsSplited.ElementAt(i));
+            }
+            else {
+                searchKeywords = searchKeywordsSplited;
+            }
             if (stemming)
                 // Apply Stemming
                 searchKeywords = stemWord(searchKeywords);
@@ -576,15 +582,14 @@ namespace Search_Engine
         private void SpellingCorrection()
         {
             SearchResultsText.InnerText = "Did you Mean :";
-            List<string> searchKeyWords = TokenLinguistics(SearchWords.Text.ToString(), false);
-            List<string> searchKeyWords2 = TokenLinguistics(SearchWords.Text.ToString(), true);
-            List<string> TrueWords = InInvertedIndex(searchKeyWords2);
+            List<string> searchKeyWords = TokenLinguistics(SearchWords.Text.ToString(), false,false);
+            List<string> TrueWords = InInvertedIndex(searchKeyWords);
             List<string> WrongWords = new List<string>();
             List<int> TrueIndexs = new List<int>();
             List<string> TrueTerms = new List<string>();
-            for (int i = 0; i < searchKeyWords2.Count(); i++)
+            for (int i = 0; i < searchKeyWords.Count(); i++)
             {
-                if (!TrueWords.Contains(searchKeyWords2[i]))
+                if (!TrueWords.Contains(searchKeyWords[i]))
                     WrongWords.Add(searchKeyWords[i]);
                 else
                 {
@@ -599,7 +604,6 @@ namespace Search_Engine
                 List<List<string>> Allgrams = new List<List<string>>();
                 List<string> GramsTerm = new List<string>();
                 List<List<List<string>>> AllTerms = new List<List<List<string>>>();
-
                 foreach (string word in WrongWords)
                 {
                     List<string> gramsWord = getBigrams(word);
@@ -703,10 +707,18 @@ namespace Search_Engine
                         index++;
                     }
                 }
+                if (ExactSearch) {
+                    List<string> HandleExactSearch = new List<string>();
+                    List<string> HandleExactSearch2 = new List<string>();
+                    HandleExactSearch.Add("\"");
+                    HandleExactSearch2.Add("\"");
+                    lstMaster.Insert(0, HandleExactSearch);
+                    lstMaster.Add(HandleExactSearch2);
+                }
                 foreach (var list in lstMaster)
                 {
                     // cross join the current result with each member of the next list
-                    lstRes = lstRes.SelectMany(o => list.Select(s => o + ' ' + s));
+                        lstRes = lstRes.SelectMany(o => list.Select(s => o + ' ' + s));
                 }
                 ListBox1.Visible = true;
                 searchResults.Visible = false;
