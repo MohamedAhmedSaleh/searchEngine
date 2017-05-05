@@ -581,9 +581,13 @@ namespace Search_Engine
 
         private void SpellingCorrection()
         {
-            SearchResultsText.InnerText = "Did you Mean :";
+            // Handle UI
+            SearchResultsText.InnerText = "Did you Mean : ";
+            // Tokenize Query without stemming and stop Removals
             List<string> searchKeyWords = TokenLinguistics(SearchWords.Text.ToString(), false,false);
+            //  Get True Words From Query
             List<string> TrueWords = InInvertedIndex(searchKeyWords);
+            // Difference between Right and Wrong words
             List<string> WrongWords = new List<string>();
             List<int> TrueIndexs = new List<int>();
             List<string> TrueTerms = new List<string>();
@@ -597,10 +601,13 @@ namespace Search_Engine
                     TrueTerms.Add(searchKeywords.ElementAt(i));
                 }
             }
+            // Query hasn't any True words
             if (TrueWords.Count == 0 && WrongWords.Count == 0)
                 WrongWords = searchKeyWords;
+            // Make spelling correction
             if (WrongWords.Count > 0)
             {
+                // Get All Grams to each word
                 List<List<string>> Allgrams = new List<List<string>>();
                 List<string> GramsTerm = new List<string>();
                 List<List<List<string>>> AllTerms = new List<List<List<string>>>();
@@ -612,6 +619,7 @@ namespace Search_Engine
                             gramsWord.Add(gr);
                     Allgrams.Add(gramsWord);
                 }
+                // Get All terms to each gram
                 foreach (List<string> GramTerms in Allgrams)
                 {
                     List<List<string>> terms = new List<List<string>>();
@@ -629,6 +637,7 @@ namespace Search_Engine
                     }
                     AllTerms.Add(terms);
                 }
+                // Filter Terms by Semilarity Weight
                 List<List<List<string>>> FilterdWordsSW = new List<List<List<string>>>();
                 foreach (string term in WrongWords)
                 {
@@ -646,6 +655,7 @@ namespace Search_Engine
                     }
                     FilterdWordsSW.Add(WordsWeights);
                 }
+                // Filter Terms by EditDistance
                 List<Dictionary<string, int>> EaWoDicED = new List<Dictionary<string, int>>();
                 int termIndex = 0;
                 foreach (string term in WrongWords)
@@ -659,6 +669,7 @@ namespace Search_Engine
                     termIndex++;
                     EaWoDicED.Add(FilterdWordsED);
                 }
+                // sort terms in dictionarys
                 List<Dictionary<string, int>> dctTempList = new List<Dictionary<string, int>>();
                 Dictionary<string, int> dctTemp = new Dictionary<string, int>();
                 List<string> recomendationWords = new List<string>();
@@ -669,6 +680,7 @@ namespace Search_Engine
                         dctTemp.Add(pair.Key, pair.Value);
                     dctTempList.Add(dctTemp);
                 }
+                // Get recomendation words 
                 foreach (string word in WrongWords)
                     foreach (Dictionary<string, int> temp in dctTempList)
                     {
@@ -685,6 +697,7 @@ namespace Search_Engine
                             }
                         }
                     }
+                // Put each two words in list to get combinations
                 List<string> EaFilterTerm = new List<string>();
                 List<string> TrueQuery;
                 List<List<string>> lstMaster = new List<List<string>>();
@@ -696,6 +709,7 @@ namespace Search_Engine
                         TrueQuery.Add(recomendationWords.ElementAt(i + j));
                     lstMaster.Add(TrueQuery);
                 }
+                // Adding Stop words and Right Words
                 if (TrueIndexs.Count > 0)
                 {
                     int index = 0;
@@ -707,6 +721,7 @@ namespace Search_Engine
                         index++;
                     }
                 }
+                // Handle Exact Search Query
                 if (ExactSearch) {
                     List<string> HandleExactSearch = new List<string>();
                     List<string> HandleExactSearch2 = new List<string>();
@@ -715,16 +730,19 @@ namespace Search_Engine
                     lstMaster.Insert(0, HandleExactSearch);
                     lstMaster.Add(HandleExactSearch2);
                 }
+                //Get All combinations between recomendation words
                 foreach (var list in lstMaster)
                 {
                     // cross join the current result with each member of the next list
                         lstRes = lstRes.SelectMany(o => list.Select(s => o + ' ' + s));
                 }
+                // Handle Ui and show Recomendations 
                 ListBox1.Visible = true;
                 searchResults.Visible = false;
                 ListBox1.DataSource = lstRes;
                 ListBox1.DataBind();
             }
+            // If Query totally hasn't wrong words
             else if (WrongWords.Count == 0)
             {
                 startSearch();
