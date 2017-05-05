@@ -487,6 +487,7 @@ namespace Search_Engine
                 soundex = soundex.Substring(0, 3);
             return soundex;
         }
+        // Get Terms With Soundex
         private List<string> GetTermsSoundex(string soundex)
         {
             string terms = "";
@@ -504,6 +505,7 @@ namespace Search_Engine
             dr.Close();
             return terms.Split('#').ToList();
         }
+        // Ranking Soundex By Edit_Distance
         private Dictionary<string, int> RankingTermsSoundex(List<string> terms, string query)
         {
             Dictionary<string, int> rankDic = new Dictionary<string, int>();
@@ -638,6 +640,7 @@ namespace Search_Engine
                 startSearch();
             }
         }
+
         private void SpellingCorrection()
         {
             SearchResultsText.InnerText = "Did you Mean :";
@@ -661,7 +664,6 @@ namespace Search_Engine
             }
             if (TrueWords.Count == 0 && WrongWords.Count == 0)
                 WrongWords = searchKeyWords;
-
             if (WrongWords.Count > 0)
             {
                 List<List<string>> Allgrams = new List<List<string>>();
@@ -741,7 +743,6 @@ namespace Search_Engine
                     }
                     dctTempList.Add(dctTemp);
                 }
-
                 foreach (string word in WrongWords)
                 {
                     foreach (Dictionary<string, int> temp in dctTempList)
@@ -760,12 +761,10 @@ namespace Search_Engine
                         }
                     }
                 }
-
                 List<string> EaFilterTerm = new List<string>();
                 List<string> TrueQuery;
                 List<List<string>> lstMaster = new List<List<string>>();
                 IEnumerable<string> lstRes = new List<string> { null };
-
                 for (int i = 0; i < recomendationWords.Count(); i += 2)
                 {
                     TrueQuery = new List<string>();
