@@ -272,7 +272,6 @@ namespace Search_Engine
                     {
                         URLs.Add(dr.GetValue(0).ToString());
                     }
-                    dr.Close();
                 }
                 // Show URLS
                 searchResults.DataSource = URLs;
@@ -285,7 +284,7 @@ namespace Search_Engine
         }
         private void SearchMultiWord(List<string> Words)
         {
-            bool Reg = true;
+            bool Handle = true;
             // Get Details To each Word in query
             foreach (var word in Words)
             {
@@ -296,7 +295,7 @@ namespace Search_Engine
                 cmd.Parameters.Add("word", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = word;
                 cmd.Parameters.Add("documentDetails", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
                 dr = cmd.ExecuteReader();
-                if (dr.HasRows)
+                if (dr.Read())
                 {
                     // get Number Of document Has this word and save in list
                     int docsNumber = int.Parse(dr.GetValue(5).ToString());
@@ -312,15 +311,14 @@ namespace Search_Engine
                     // get possitions of this word in document and save in list
                     string positions = dr.GetValue(2).ToString();
                     postionsList.AddRange(positions.Split(',').ToList());
-                    dr.Close();
                 }
                 else
                 {
                     SpellingCorrection();
-                    Reg = false;
+                    Handle = false;
                 }
             }
-            if (Reg)
+            if (Handle)
             {
                 // get intersection of document_ids between query words
                 List<string> ShowIntersect = All_Keys[0];
@@ -633,10 +631,12 @@ namespace Search_Engine
 
         protected void ListBox1_SelectedIndexChanged(object sender, EventArgs e)
         {
-            SearchWords.Text = ListBox1.SelectedValue.ToString();
-            if (RadioButtonList1.SelectedIndex != -1)
+            if (RadioButtonList1.SelectedValue == "Soundex" || RadioButtonList1.SelectedValue == "spelling correction")
+            {
+                SearchWords.Text = ListBox1.SelectedValue.ToString();
                 RadioButtonList1.ClearSelection();
-            startSearch();
+                startSearch();
+            }
         }
         private void SpellingCorrection()
         {
@@ -697,7 +697,6 @@ namespace Search_Engine
                     }
                     AllTerms.Add(terms);
                 }
-                dr.Close();
                 List<List<List<string>>> FilterdWordsSW = new List<List<List<string>>>();
                 foreach (string term in WrongWords)
                 {
@@ -761,39 +760,36 @@ namespace Search_Engine
                         }
                     }
                 }
+
                 List<string> EaFilterTerm = new List<string>();
                 List<string> TrueQuery;
                 List<List<string>> lstMaster = new List<List<string>>();
                 IEnumerable<string> lstRes = new List<string> { null };
-                if (recomendationWords.Count > 1)
+
+                for (int i = 0; i < recomendationWords.Count(); i += 2)
                 {
-                    for (int i = 0; i < recomendationWords.Count(); i += 2)
+                    TrueQuery = new List<string>();
+                    for (int j = 0; j < 2; j++)
                     {
-                        TrueQuery = new List<string>();
-                        for (int j = 0; j < 2; j++)
-                        {
-                            TrueQuery.Add(recomendationWords.ElementAt(i + j));
-                        }
-                        /*if (TrueIndexs.Count > 0)
-                        {
-                            int index = 0;
-                            foreach (string word in TrueTerms)
-                            {
-                                TrueQuery.Insert(index, word);
-                                index++;
-                            }
-                        }*/
-                        lstMaster.Add(TrueQuery);
+                        TrueQuery.Add(recomendationWords.ElementAt(i + j));
                     }
-                    foreach (var list in lstMaster)
+                    lstMaster.Add(TrueQuery);
+                }
+                if (TrueIndexs.Count > 0)
+                {
+                    int index = 0;
+                    foreach (string word in TrueTerms)
                     {
-                        // cross join the current result with each member of the next list
-                        lstRes = lstRes.SelectMany(o => list.Select(s => o + ' ' + s));
+                        List<string> right_word = new List<string>();
+                        right_word.Add(word);
+                        lstMaster.Insert(TrueIndexs.ElementAt(index), right_word);
+                        index++;
                     }
                 }
-                else
+                foreach (var list in lstMaster)
                 {
-                    lstRes = recomendationWords;
+                    // cross join the current result with each member of the next list
+                    lstRes = lstRes.SelectMany(o => list.Select(s => o + ' ' + s));
                 }
                 ListBox1.Visible = true;
                 ListBox1.DataSource = lstRes;
@@ -802,6 +798,7 @@ namespace Search_Engine
             else if (WrongWords.Count == 0)
             {
                 startSearch();
+                RadioButtonList1.ClearSelection();
             }
         }
     }
