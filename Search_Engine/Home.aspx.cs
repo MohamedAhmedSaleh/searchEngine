@@ -95,6 +95,7 @@ namespace Search_Engine
             docsNumberList = new List<int>();
             docID = new List<int>();
             All_Keys = new List<List<string>>();
+            URLs = new List<string>();
             SoundexResultsOneWord = new Dictionary<string, int>();
         }
 
@@ -260,9 +261,6 @@ namespace Search_Engine
             // Intialization
             SoundexOneWord = true;
             // Handle Ui
-            SearchResultsText.InnerText = "Search Results : ";
-            SearchResultsText.Visible = true;
-            searchResults.Visible = true;
             // Get Soundex Of One Word
             string soundex = Soundex(searchKeywords.ElementAt(0));
             // Get Terms from Soundex (DB)
@@ -278,14 +276,24 @@ namespace Search_Engine
                     dctTemp.Add(pair.Key, pair.Value);
                 // Filter And Get List of Recommendation Values
                 for (int i = 0; i < dctTemp.Count(); i++)
-                    if (!dctTemp.ElementAt(i).Key.Equals(searchKeywords.ElementAt(0)))
-                        recomendationWords.Add(dctTemp.ElementAt(i).Key);
+                    recomendationWords.Add(dctTemp.ElementAt(i).Key);
                 foreach (string word in recomendationWords)
                     SearchOneWord(word);
                 Dictionary<string, int> Urls = new Dictionary<string, int>();
                 foreach (KeyValuePair<string, int> pair in SoundexResultsOneWord.OrderByDescending(key => key.Value))
                     Urls.Add(pair.Key, pair.Value);
                 // Pop ListBox
+                string results = "";
+                for (int i = 0; i < recomendationWords.Count; i++)
+                {
+                    if (i == recomendationWords.Count - 1)
+                        results += recomendationWords.ElementAt(i);
+                    else
+                        results += recomendationWords.ElementAt(i) + ", ";
+                }
+                SearchResultsText.InnerText = "Search Results Of : " + results;
+                SearchResultsText.Visible = true;
+                searchResults.Visible = true;
                 searchResults.DataSource = Urls.Keys.ToList();
                 searchResults.DataBind();
             }
