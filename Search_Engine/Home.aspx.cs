@@ -296,6 +296,7 @@ namespace Search_Engine
                 searchResults.Visible = true;
                 searchResults.DataSource = Urls.Keys.ToList();
                 searchResults.DataBind();
+                RadioButtonList1.ClearSelection();
             }
             else
             {
@@ -808,6 +809,5 @@ namespace Search_Engine
             }
             return d[d.GetUpperBound(0), d.GetUpperBound(1)];
         }
-
     }
 }
