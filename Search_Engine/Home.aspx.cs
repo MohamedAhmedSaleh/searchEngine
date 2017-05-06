@@ -20,6 +20,7 @@ namespace Search_Engine
         List<int> docsNumberList;
         List<int> docID;
         List<string> URLs;
+        Dictionary<string, int> SoundexResultsOneWord;
         Dictionary<string, List<int>> termsMap;
         string connectionString = "Data source=orcl; User Id=scott; Password=tiger;";
         OracleConnection conn;
@@ -29,6 +30,7 @@ namespace Search_Engine
         bool ExactSearch;
         OracleCommand cmd;
         OracleDataReader dr;
+        bool SoundexOneWord;
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -39,56 +41,9 @@ namespace Search_Engine
             ListBox1.Visible = false;
         }
 
-        protected void Search_Click(object sender, EventArgs e)
-        {
-            // Empty Query
-            if (SearchWords.Text.Length == 0)
-                RequiredFieldValidator2.Visible = true;
-            else
-            {
-                // Handle UI
-                RequiredFieldValidator2.Visible = false;
-                ExactSearch = false;
-                SearchResultsText.Visible = true;
-                // Radiobutton Selection 
-                string selectedValue = RadioButtonList1.SelectedValue;
-                if (selectedValue == "Soundex")
-                {
-                    // Handle Ui
-                    SearchResultsText.InnerText = "Did you Mean :";
-                    // Get Soundex Of One Word
-                    string soundex = Soundex(SearchWords.Text.ToString());
-                    // Get Terms from Soundex (DB)
-                    List<string> terms = GetTermsSoundex(soundex);
-                    // Rank Terms with EditDistance
-                    Dictionary<string, int> rankdic = RankingTermsSoundex(terms, SearchWords.Text.ToString());
-                    // Sort Dictionary 
-                    Dictionary<string, int> dctTemp = new Dictionary<string, int>();
-                    List<string> recomendationWords = new List<string>();
-                    foreach (KeyValuePair<string, int> pair in rankdic.OrderBy(key => key.Value))
-                        dctTemp.Add(pair.Key, pair.Value);
-                    // Filter And Get List of Recommendation Values
-                    for (int i = 0; i < dctTemp.Count(); i++)
-                        if (!dctTemp.ElementAt(i).Key.Equals(SearchWords.Text.ToString()))
-                            recomendationWords.Add(dctTemp.ElementAt(i).Key);
-                    // Pop ListBox
-                    ListBox1.Visible = true;
-                    searchResults.Visible = false;
-                    ListBox1.DataSource = recomendationWords;
-                    ListBox1.DataBind();
-                }
-                // K-Gram
-                else if (selectedValue == "spelling correction")
-                    SpellingCorrection();
-                // Searching
-                else
-                    startSearch();
-            }
-        }
 
         private void init()
         {
-            ExactSearch = false;
             stopWords = new string[] {"a", "about", "above", "after","again", "against", "all", "almost", "along", "am", "also","and","any","anyway", "anywhere", "are","aren't","as", "at",
                     "because", "be", "before", "becomes", "becoming", "been", "before", "beforehand", "behind", "being", "below", "beside","besides", "between", "beyond", "both", "bottom", "but", "by",
                     "can", "cannot", "cant","could", "couldnt",
@@ -139,27 +94,47 @@ namespace Search_Engine
             docIDsList = new List<string>();
             docsNumberList = new List<int>();
             docID = new List<int>();
-            URLs = new List<string>();
             All_Keys = new List<List<string>>();
+            SoundexResultsOneWord = new Dictionary<string, int>();
         }
-        private List<string> InInvertedIndex(List<string> queryWords)
+
+        protected void Search_Click(object sender, EventArgs e)
         {
-            // This Term in InvertedIndex Or Not
-            List<string> TrueWords = new List<string>();
-            foreach (string term in queryWords)
+            ExactSearch = false;
+            SoundexOneWord = false;
+            SearchResultsText.Visible = false;
+            searchResults.Visible = false;
+            ListBox1.Visible = false;
+            // Empty Query
+            if (SearchWords.Text.Length == 0)
+                RequiredFieldValidator2.Visible = true;
+            else
             {
-                OracleCommand cmd;
-                cmd = new OracleCommand();
-                cmd.Connection = conn;
-                cmd.CommandText = "GetTermDetailsBefStem";
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.Add("word", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = term;
-                cmd.Parameters.Add("documentDetails", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
-                OracleDataReader dr = cmd.ExecuteReader();
-                if (dr.Read())
-                    TrueWords.Add(term);
+                // Handle UI
+                RequiredFieldValidator2.Visible = false;
+                // Radiobutton Selection 
+                string selectedValue = RadioButtonList1.SelectedValue;
+                if (selectedValue == "Soundex")
+                {
+                    searchKeywords = TokenLinguistics(SearchWords.Text, false, true);
+                    if (searchKeywords.Count == 1)
+                        SearchTermBySoundex();
+                    else
+                    {
+                        /*SearchResultsText.Visible = true;
+                        SearchResultsText.InnerText = "Did you Mean :";
+                        ListBox1.Visible = true;*/
+
+                        // SearchMultiTermsBySoundex
+                    }
+                }
+                // K-Gram
+                else if (selectedValue == "spelling correction")
+                    SpellingCorrection();
+                // Searching
+                else
+                    startSearch();
             }
-            return TrueWords;
         }
         private void startSearch()
         {
@@ -171,7 +146,7 @@ namespace Search_Engine
             if (SearchWords.Text[0] == '\"' && SearchWords.Text[SearchWords.Text.Length - 1] == '\"')
                 ExactSearch = true;
             // Apply Tokenization and linguistics algorithms .
-            searchKeywords = TokenLinguistics(SearchWords.Text, true,true);
+            searchKeywords = TokenLinguistics(SearchWords.Text, true, true);
             // If Query One Word ... Ranking with Frequency
             if (searchKeywords.Count == 1)
                 SearchOneWord(searchKeywords[0]);
@@ -179,7 +154,7 @@ namespace Search_Engine
             else
                 SearchMultiWord(searchKeywords);
         }
-        private List<string> TokenLinguistics(string query, bool stemming,bool remstopwords)
+        private List<string> TokenLinguistics(string query, bool stemming, bool remstopwords)
         {
             searchKeywords = new List<string>();
             // split commas , dots and Remove any punctuation character from the word 
@@ -195,11 +170,12 @@ namespace Search_Engine
                     if (!stopWords.Contains(searchKeywordsSplited[i]))
                         searchKeywords.Add(searchKeywordsSplited.ElementAt(i));
             }
-            else {
+            else
+            {
                 searchKeywords = searchKeywordsSplited;
             }
+            // Apply Stemming
             if (stemming)
-                // Apply Stemming
                 searchKeywords = stemWord(searchKeywords);
             // Apply CaseFolding
             for (int i = 0; i < searchKeywords.Count; i++)
@@ -235,6 +211,7 @@ namespace Search_Engine
             dr = cmd.ExecuteReader();
             if (dr.Read())
             {
+                URLs = new List<string>();
                 // save docIds and frequencies in lists 
                 string docIDs = dr.GetValue(4).ToString();
                 docIDsList.AddRange(docIDs.Split(',').ToList());
@@ -259,15 +236,63 @@ namespace Search_Engine
                     cmd.Parameters.Add("docID", OracleDbType.Int32, DBNull.Value, ParameterDirection.Input).Value = id;
                     cmd.Parameters.Add("documentDetails", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
                     dr = cmd.ExecuteReader();
-                    while (dr.Read())
+                    if (dr.Read())
                         URLs.Add(dr.GetValue(0).ToString());
+                    dr.Close();
                 }
-                // Show URLS
-                searchResults.DataSource = URLs;
-                searchResults.DataBind();
+                if (SoundexOneWord)
+                    for (int i = 0; i < URLs.Count; i++)
+                    {
+                        SoundexResultsOneWord[URLs.ElementAt(i)] = dctTemp.ElementAt(i).Value;
+                    }
+                else
+                {
+                    // Show URLS
+                    searchResults.DataSource = URLs;
+                    searchResults.DataBind();
+                }
             }
             else
                 SpellingCorrection();
+        }
+        private void SearchTermBySoundex()
+        {
+            // Intialization
+            SoundexOneWord = true;
+            // Handle Ui
+            SearchResultsText.InnerText = "Search Results : ";
+            SearchResultsText.Visible = true;
+            searchResults.Visible = true;
+            // Get Soundex Of One Word
+            string soundex = Soundex(searchKeywords.ElementAt(0));
+            // Get Terms from Soundex (DB)
+            List<string> terms = GetTermsSoundex(soundex);
+            // Rank Terms with EditDistance
+            Dictionary<string, int> rankdic = RankingTermsSoundex(terms, searchKeywords.ElementAt(0));
+            if (rankdic.Count > 0)
+            {
+                // Sort Dictionary 
+                Dictionary<string, int> dctTemp = new Dictionary<string, int>();
+                List<string> recomendationWords = new List<string>();
+                foreach (KeyValuePair<string, int> pair in rankdic.OrderBy(key => key.Value))
+                    dctTemp.Add(pair.Key, pair.Value);
+                // Filter And Get List of Recommendation Values
+                for (int i = 0; i < dctTemp.Count(); i++)
+                    if (!dctTemp.ElementAt(i).Key.Equals(searchKeywords.ElementAt(0)))
+                        recomendationWords.Add(dctTemp.ElementAt(i).Key);
+                foreach (string word in recomendationWords)
+                    SearchOneWord(word);
+                Dictionary<string, int> Urls = new Dictionary<string, int>();
+                foreach (KeyValuePair<string, int> pair in SoundexResultsOneWord.OrderByDescending(key => key.Value))
+                    Urls.Add(pair.Key, pair.Value);
+                // Pop ListBox
+                searchResults.DataSource = Urls.Keys.ToList();
+                searchResults.DataBind();
+            }
+            else
+            {
+                SearchResultsText.InnerText = "Your Soundex Search - " + SearchWords.Text + " - did not match any documents. You Should Use Spelling Correction";
+            }
         }
         private void SearchMultiWord(List<string> Words)
         {
@@ -298,6 +323,7 @@ namespace Search_Engine
                     // get possitions of this word in document and save in list
                     string positions = dr.GetValue(2).ToString();
                     postionsList.AddRange(positions.Split(',').ToList());
+                    dr.Close();
                 }
                 else
                 {
@@ -460,7 +486,8 @@ namespace Search_Engine
             foreach (string term in terms)
             {
                 int dis = editDistance(term, query);
-                rankDic[term] = dis;
+                if (dis <= 4)
+                    rankDic[term] = dis;
             }
             return rankDic;
         }
@@ -492,91 +519,13 @@ namespace Search_Engine
                 avgdist += dis;
             return avgdist / dist.Count;
         }
-        // get grams of one term
-        // cat -> $c , ca , at , a$
-        private List<string> getBigrams(string term)
-        {
-            string[] Bigrams = new string[term.Length + 1];
-            Bigrams[0] = "$" + term[0].ToString();
-            for (int i = 0; i < term.Length - 1; i++)
-                Bigrams[i + 1] = term[i].ToString() + term[i + 1].ToString();
-            Bigrams[term.Length] = term[term.Length - 1].ToString() + "$";
-            return Bigrams.ToList();
-        }
-        // calculate sismilarityWeight between two terms 
-        private List<string> calculateSimilarityWeight(List<string> dicTerm, string queryTerm)
-        {
-            List<string> FilterdWords = new List<string>();
-            foreach (string word in dicTerm)
-            {
-                List<string> dicTermBigrams = getBigrams(word);
-                List<string> queryTermBigrams = getBigrams(queryTerm);
-                double commonBigrams = Convert.ToDouble(dicTermBigrams.Intersect(queryTermBigrams).Count());
-                double similarityWeight = ((2.0 * commonBigrams) / (queryTermBigrams.Count + dicTermBigrams.Count));
-                if (similarityWeight >= 0.45)
-                    if (!FilterdWords.Contains(word))
-                        FilterdWords.Add(word);
-            }
-            return FilterdWords;
-        }
-        // calculate editDistance between two terms (copy,replace,delete,insert)
-        private int editDistance(string a, string b)
-        {
 
-            if (string.IsNullOrEmpty(a))
-            {
-                if (!string.IsNullOrEmpty(b))
-                {
-                    return b.Length;
-                }
-                return 0;
-            }
-
-            if (string.IsNullOrEmpty(b))
-            {
-                if (!string.IsNullOrEmpty(a))
-                {
-                    return a.Length;
-                }
-                return 0;
-            }
-
-            int cost;
-            int[,] d = new int[a.Length + 1, b.Length + 1];
-            int min1;
-            int min2;
-            int min3;
-
-            for (int i = 0; i <= d.GetUpperBound(0); i += 1)
-            {
-                d[i, 0] = i;
-            }
-
-            for (int i = 0; i <= d.GetUpperBound(1); i += 1)
-            {
-                d[0, i] = i;
-            }
-
-            for (int i = 1; i <= d.GetUpperBound(0); i += 1)
-            {
-                for (int j = 1; j <= d.GetUpperBound(1); j += 1)
-                {
-                    cost = Convert.ToInt32(!(a[i - 1] == b[j - 1]));
-
-                    min1 = d[i - 1, j] + 1;
-                    min2 = d[i, j - 1] + 1;
-                    min3 = d[i - 1, j - 1] + cost;
-                    d[i, j] = Math.Min(Math.Min(min1, min2), min3);
-                }
-            }
-            return d[d.GetUpperBound(0), d.GetUpperBound(1)];
-        }
 
         protected void ListBox1_SelectedIndexChanged(object sender, EventArgs e)
         {
-                SearchWords.Text = ListBox1.SelectedValue.ToString();
-                RadioButtonList1.ClearSelection();
-                startSearch();
+            SearchWords.Text = ListBox1.SelectedValue.ToString();
+            RadioButtonList1.ClearSelection();
+            startSearch();
         }
 
         private void SpellingCorrection()
@@ -584,7 +533,7 @@ namespace Search_Engine
             // Handle UI
             SearchResultsText.InnerText = "Did you Mean : ";
             // Tokenize Query without stemming and stop Removals
-            List<string> searchKeyWords = TokenLinguistics(SearchWords.Text.ToString(), false,false);
+            List<string> searchKeyWords = TokenLinguistics(SearchWords.Text.ToString(), false, false);
             //  Get True Words From Query
             List<string> TrueWords = InInvertedIndex(searchKeyWords);
             // Difference between Right and Wrong words
@@ -633,7 +582,10 @@ namespace Search_Engine
                         cmd.Parameters.Add("termsofsoundex", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
                         dr = cmd.ExecuteReader();
                         if (dr.Read())
+                        {
                             terms.Add(dr.GetValue(0).ToString().Split('#').ToList());
+                            dr.Close();
+                        }
                     }
                     AllTerms.Add(terms);
                 }
@@ -722,7 +674,8 @@ namespace Search_Engine
                     }
                 }
                 // Handle Exact Search Query
-                if (ExactSearch) {
+                if (ExactSearch)
+                {
                     List<string> HandleExactSearch = new List<string>();
                     List<string> HandleExactSearch2 = new List<string>();
                     HandleExactSearch.Add("\"");
@@ -734,7 +687,7 @@ namespace Search_Engine
                 foreach (var list in lstMaster)
                 {
                     // cross join the current result with each member of the next list
-                        lstRes = lstRes.SelectMany(o => list.Select(s => o + ' ' + s));
+                    lstRes = lstRes.SelectMany(o => list.Select(s => o + ' ' + s));
                 }
                 // Handle Ui and show Recomendations 
                 ListBox1.Visible = true;
@@ -749,5 +702,104 @@ namespace Search_Engine
                 RadioButtonList1.ClearSelection();
             }
         }
+        private List<string> InInvertedIndex(List<string> queryWords)
+        {
+            // This Term in InvertedIndex Or Not
+            List<string> TrueWords = new List<string>();
+            foreach (string term in queryWords)
+            {
+                OracleCommand cmd;
+                cmd = new OracleCommand();
+                cmd.Connection = conn;
+                cmd.CommandText = "GetTermDetailsBefStem";
+                cmd.CommandType = CommandType.StoredProcedure;
+                cmd.Parameters.Add("word", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = term;
+                cmd.Parameters.Add("documentDetails", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
+                OracleDataReader dr = cmd.ExecuteReader();
+                if (dr.Read())
+                    TrueWords.Add(term);
+            }
+            return TrueWords;
+        }
+        // get grams of one term
+        // cat -> $c , ca , at , a$
+        private List<string> getBigrams(string term)
+        {
+            string[] Bigrams = new string[term.Length + 1];
+            Bigrams[0] = "$" + term[0].ToString();
+            for (int i = 0; i < term.Length - 1; i++)
+                Bigrams[i + 1] = term[i].ToString() + term[i + 1].ToString();
+            Bigrams[term.Length] = term[term.Length - 1].ToString() + "$";
+            return Bigrams.ToList();
+        }
+        // calculate sismilarityWeight between two terms 
+        private List<string> calculateSimilarityWeight(List<string> dicTerm, string queryTerm)
+        {
+            List<string> FilterdWords = new List<string>();
+            foreach (string word in dicTerm)
+            {
+                List<string> dicTermBigrams = getBigrams(word);
+                List<string> queryTermBigrams = getBigrams(queryTerm);
+                double commonBigrams = Convert.ToDouble(dicTermBigrams.Intersect(queryTermBigrams).Count());
+                double similarityWeight = ((2.0 * commonBigrams) / (queryTermBigrams.Count + dicTermBigrams.Count));
+                if (similarityWeight >= 0.45)
+                    if (!FilterdWords.Contains(word))
+                        FilterdWords.Add(word);
+            }
+            return FilterdWords;
+        }
+        // calculate editDistance between two terms (copy,replace,delete,insert)
+        private int editDistance(string a, string b)
+        {
+
+            if (string.IsNullOrEmpty(a))
+            {
+                if (!string.IsNullOrEmpty(b))
+                {
+                    return b.Length;
+                }
+                return 0;
+            }
+
+            if (string.IsNullOrEmpty(b))
+            {
+                if (!string.IsNullOrEmpty(a))
+                {
+                    return a.Length;
+                }
+                return 0;
+            }
+
+            int cost;
+            int[,] d = new int[a.Length + 1, b.Length + 1];
+            int min1;
+            int min2;
+            int min3;
+
+            for (int i = 0; i <= d.GetUpperBound(0); i += 1)
+            {
+                d[i, 0] = i;
+            }
+
+            for (int i = 0; i <= d.GetUpperBound(1); i += 1)
+            {
+                d[0, i] = i;
+            }
+
+            for (int i = 1; i <= d.GetUpperBound(0); i += 1)
+            {
+                for (int j = 1; j <= d.GetUpperBound(1); j += 1)
+                {
+                    cost = Convert.ToInt32(!(a[i - 1] == b[j - 1]));
+
+                    min1 = d[i - 1, j] + 1;
+                    min2 = d[i, j - 1] + 1;
+                    min3 = d[i - 1, j - 1] + cost;
+                    d[i, j] = Math.Min(Math.Min(min1, min2), min3);
+                }
+            }
+            return d[d.GetUpperBound(0), d.GetUpperBound(1)];
+        }
+
     }
 }
