@@ -664,99 +664,111 @@ namespace Search_Engine
                         foreach (List<string> words in Listwords)
                         {
                             List<string> weights = calculateSimilarityWeight(words, term);
-                            if (calculateSimilarityWeight(words, term).Count > 0)
+                            if (weights.Count > 0)
                                 WordsWeights.Add(weights);
                         }
                     }
-                    FilterdWordsSW.Add(WordsWeights);
+                    if (WordsWeights.Count > 0)
+                        FilterdWordsSW.Add(WordsWeights);
                 }
-                // Filter Terms by EditDistance
-                List<Dictionary<string, int>> EaWoDicED = new List<Dictionary<string, int>>();
-                int termIndex = 0;
-                foreach (string term in WrongWords)
+                if (FilterdWordsSW.Count > 0)
                 {
-                    Dictionary<string, int> FilterdWordsED = new Dictionary<string, int>();
-                    foreach (List<string> fiterWordsInTerm in FilterdWordsSW.ElementAt(termIndex))
+                    // Filter Terms by EditDistance
+                    List<Dictionary<string, int>> EaWoDicED = new List<Dictionary<string, int>>();
+                    int termIndex = 0;
+                    foreach (string term in WrongWords)
                     {
-                        foreach (string word in fiterWordsInTerm)
-                            FilterdWordsED[word + '#' + term] = editDistance(word, term);
-                    }
-                    termIndex++;
-                    EaWoDicED.Add(FilterdWordsED);
-                }
-                // sort terms in dictionarys
-                List<Dictionary<string, int>> dctTempList = new List<Dictionary<string, int>>();
-                Dictionary<string, int> dctTemp = new Dictionary<string, int>();
-                List<string> recomendationWords = new List<string>();
-                for (int i = 0; i < EaWoDicED.Count; i++)
-                {
-                    dctTemp = new Dictionary<string, int>();
-                    foreach (KeyValuePair<string, int> pair in EaWoDicED.ElementAt(i).OrderBy(key => key.Value))
-                        dctTemp.Add(pair.Key, pair.Value);
-                    dctTempList.Add(dctTemp);
-                }
-                // Get recomendation words 
-                foreach (string word in WrongWords)
-                    foreach (Dictionary<string, int> temp in dctTempList)
-                    {
-                        int counter = 0;
-                        for (int i = 0; i < temp.Count(); i++)
+                        Dictionary<string, int> FilterdWordsED = new Dictionary<string, int>();
+                        foreach (List<string> fiterWordsInTerm in FilterdWordsSW.ElementAt(termIndex))
                         {
-                            string[] Merge = temp.ElementAt(i).Key.Split('#');
-                            if (Merge[1] == word)
+                            foreach (string word in fiterWordsInTerm)
+                                FilterdWordsED[word + '#' + term] = editDistance(word, term);
+                        }
+                        termIndex++;
+                        EaWoDicED.Add(FilterdWordsED);
+                    }
+                    // sort terms in dictionarys
+                    List<Dictionary<string, int>> dctTempList = new List<Dictionary<string, int>>();
+                    Dictionary<string, int> dctTemp = new Dictionary<string, int>();
+                    List<string> recomendationWords = new List<string>();
+                    for (int i = 0; i < EaWoDicED.Count; i++)
+                    {
+                        dctTemp = new Dictionary<string, int>();
+                        foreach (KeyValuePair<string, int> pair in EaWoDicED.ElementAt(i).OrderBy(key => key.Value))
+                            dctTemp.Add(pair.Key, pair.Value);
+                        dctTempList.Add(dctTemp);
+                    }
+                    // Get recomendation words 
+                    foreach (string word in WrongWords)
+                        foreach (Dictionary<string, int> temp in dctTempList)
+                        {
+                            int counter = 0;
+                            for (int i = 0; i < temp.Count(); i++)
                             {
-                                recomendationWords.Add(Merge[0]);
-                                counter++;
-                                if (counter == 2)
-                                    break;
+                                string[] Merge = temp.ElementAt(i).Key.Split('#');
+                                if (Merge[1] == word)
+                                {
+                                    recomendationWords.Add(Merge[0]);
+                                    counter++;
+                                    if (counter == 2)
+                                        break;
+                                }
                             }
                         }
-                    }
-                // Put each two words in list to get combinations
-                List<string> EaFilterTerm = new List<string>();
-                List<string> TrueQuery;
-                List<List<string>> lstMaster = new List<List<string>>();
-                IEnumerable<string> lstRes = new List<string> { null };
-                for (int i = 0; i < recomendationWords.Count(); i += 2)
-                {
-                    TrueQuery = new List<string>();
-                    for (int j = 0; j < 2; j++)
-                        TrueQuery.Add(recomendationWords.ElementAt(i + j));
-                    lstMaster.Add(TrueQuery);
-                }
-                // Adding Stop words and Right Words
-                if (TrueIndexs.Count > 0)
-                {
-                    int index = 0;
-                    foreach (string word in TrueTerms)
+                    // Put each two words in list to get combinations
+                    List<string> EaFilterTerm = new List<string>();
+                    List<string> TrueQuery;
+                    List<List<string>> lstMaster = new List<List<string>>();
+                    IEnumerable<string> lstRes = new List<string> { null };
+                    for (int i = 0; i < recomendationWords.Count(); i += 2)
                     {
-                        List<string> right_word = new List<string>();
-                        right_word.Add(word);
-                        lstMaster.Insert(TrueIndexs.ElementAt(index), right_word);
-                        index++;
+                        TrueQuery = new List<string>();
+                        for (int j = 0; j < 2; j++)
+                            TrueQuery.Add(recomendationWords.ElementAt(i + j));
+                        lstMaster.Add(TrueQuery);
                     }
+                    // Adding Stop words and Right Words
+                    if (TrueIndexs.Count > 0)
+                    {
+                        int index = 0;
+                        foreach (string word in TrueTerms)
+                        {
+                            List<string> right_word = new List<string>();
+                            right_word.Add(word);
+                            lstMaster.Insert(TrueIndexs.ElementAt(index), right_word);
+                            index++;
+                        }
+                    }
+                    // Handle Exact Search Query
+                    if (exactSearch)
+                    {
+                        List<string> HandleExactSearch = new List<string>();
+                        List<string> HandleExactSearch2 = new List<string>();
+                        HandleExactSearch.Add("\"");
+                        HandleExactSearch2.Add("\"");
+                        lstMaster.Insert(0, HandleExactSearch);
+                        lstMaster.Add(HandleExactSearch2);
+                    }
+                    //Get All combinations between recomendation words
+                    foreach (var list in lstMaster)
+                    {
+                        // cross join the current result with each member of the next list
+                        lstRes = lstRes.SelectMany(o => list.Select(s => o + ' ' + s));
+                    }
+                    // Handle Ui and show Recomendations 
+
+                    ListBox1.Visible = true;
+                    searchResults.Visible = false;
+                    ListBox1.DataSource = lstRes;
+                    ListBox1.DataBind();
+
                 }
-                // Handle Exact Search Query
-                if (exactSearch)
+                else
                 {
-                    List<string> HandleExactSearch = new List<string>();
-                    List<string> HandleExactSearch2 = new List<string>();
-                    HandleExactSearch.Add("\"");
-                    HandleExactSearch2.Add("\"");
-                    lstMaster.Insert(0, HandleExactSearch);
-                    lstMaster.Add(HandleExactSearch2);
+                    SearchResultsText.InnerText = "No spelling correction for this word";
+                    ListBox1.Visible = false;
+                    searchResults.Visible = false;
                 }
-                //Get All combinations between recomendation words
-                foreach (var list in lstMaster)
-                {
-                    // cross join the current result with each member of the next list
-                    lstRes = lstRes.SelectMany(o => list.Select(s => o + ' ' + s));
-                }
-                // Handle Ui and show Recomendations 
-                ListBox1.Visible = true;
-                searchResults.Visible = false;
-                ListBox1.DataSource = lstRes;
-                ListBox1.DataBind();
             }
             // If Query totally hasn't wrong words
             else if (WrongWords.Count == 0)
