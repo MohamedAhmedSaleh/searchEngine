@@ -271,7 +271,7 @@ namespace Search_Engine
                 foreach (KeyValuePair<string, int> pair in rankdic.OrderBy(key => key.Value))
                     dctTemp.Add(pair.Key, pair.Value);
                 // Filter And Get List of Recommendation Values
-                for (int i = 0; i < dctTemp.Count(); i++)
+                for (int i = 0; i < 3; i++)
                     recomendationWords.Add(dctTemp.ElementAt(i).Key);
                 foreach (string word in recomendationWords)
                     SearchOneWord(word);
@@ -333,7 +333,12 @@ namespace Search_Engine
                     Dictionary<string, int> Terms = new Dictionary<string, int>();
                     foreach (KeyValuePair<string, int> pair in dic.OrderBy(key => key.Value))
                         Terms.Add(pair.Key, pair.Value);
-                    RecommendationWords.Add(Terms.Keys.ToList());
+                    List<string> SoundexsEachTerms = new List<string>();
+                    for (int i = 0; i < 3; i++)
+                    {
+                        SoundexsEachTerms.Add(Terms.Keys.ElementAt(i));
+                    }
+                    RecommendationWords.Add(SoundexsEachTerms);
                 }
                 IEnumerable<string> lstRes = new List<string> { null };
                 //Get All combinations between recomendation words
@@ -545,7 +550,6 @@ namespace Search_Engine
             foreach (string term in terms)
             {
                 int dis = editDistance(term, query);
-                if (dis <= 4)
                     rankDic[term] = dis;
             }
             return rankDic;
@@ -859,6 +863,11 @@ namespace Search_Engine
                 }
             }
             return d[d.GetUpperBound(0), d.GetUpperBound(1)];
+        }
+
+        protected void resetFun(object sender, EventArgs e)
+        {
+            RadioButtonList1.ClearSelection();
         }
     }
 }
