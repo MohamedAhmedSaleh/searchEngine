@@ -116,15 +116,13 @@ namespace Search_Engine
                 if (selectedValue == "Soundex")
                 {
                     searchKeywords = TokenLinguistics(SearchWords.Text, false, true);
+                    // SearchOneTermsBySoundex
                     if (searchKeywords.Count == 1)
                         SearchTermBySoundex();
                     else
                     {
-                        /*SearchResultsText.Visible = true;
-                        SearchResultsText.InnerText = "Did you Mean :";
-                        ListBox1.Visible = true;*/
-
                         // SearchMultiTermsBySoundex
+                        SearchTermsBySoundex();
                     }
                 }
                 // K-Gram
@@ -294,10 +292,60 @@ namespace Search_Engine
                 searchResults.Visible = true;
                 searchResults.DataSource = Urls.Keys.ToList();
                 searchResults.DataBind();
+                RadioButtonList1.ClearSelection();
             }
             else
             {
                 SearchResultsText.InnerText = "Your Soundex Search - " + SearchWords.Text + " - did not match any documents. You Should Use Spelling Correction";
+            }
+        }
+        private void SearchTermsBySoundex()
+        {
+            // Handle UI
+            SearchResultsText.InnerText = "Did you Mean : ";
+            // Tokenize Query without stemming and stop Removals
+            List<string> searchKeyWords = TokenLinguistics(SearchWords.Text.ToString(), false, true);
+            //  Get True Words From Query
+            List<string> TrueWords = InInvertedIndex(searchKeyWords);
+            // Difference between Right and Wrong words
+            List<string> WrongWords = new List<string>();
+            List<Dictionary<string, int>> rankDic = new List<Dictionary<string, int>>();
+            List<List<string>> RecommendationWords = new List<List<string>>();
+            for (int i = 0; i < searchKeyWords.Count(); i++)
+            {
+                if (!TrueWords.Contains(searchKeyWords[i]))
+                    WrongWords.Add(searchKeyWords[i]);
+            }
+            if (WrongWords.Count > 0)
+                SpellingCorrection();
+            else
+            {
+                foreach (string word in searchKeyWords)
+                {
+                    string soundex = Soundex(word);
+                    // Get Terms from Soundex (DB)
+                    List<string> terms = GetTermsSoundex(soundex);
+                    // Rank Terms with EditDistance
+                    rankDic.Add(RankingTermsSoundex(terms, word));
+                }
+                foreach (Dictionary<string, int> dic in rankDic)
+                {
+                    Dictionary<string, int> Terms = new Dictionary<string, int>();
+                    foreach (KeyValuePair<string, int> pair in dic.OrderBy(key => key.Value))
+                        Terms.Add(pair.Key, pair.Value);
+                    RecommendationWords.Add(Terms.Keys.ToList());
+                }
+                IEnumerable<string> lstRes = new List<string> { null };
+                //Get All combinations between recomendation words
+                foreach (var list in RecommendationWords)
+                {
+                    // cross join the current result with each member of the next list
+                    lstRes = lstRes.SelectMany(o => list.Select(s => o + ' ' + s));
+                }
+                SearchResultsText.Visible = true;
+                ListBox1.Visible = true;
+                ListBox1.DataSource = lstRes;
+                ListBox1.DataBind();
             }
         }
         private void SearchMultiWord(List<string> Words)
@@ -812,6 +860,5 @@ namespace Search_Engine
             }
             return d[d.GetUpperBound(0), d.GetUpperBound(1)];
         }
-
     }
 }
