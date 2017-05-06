@@ -20,17 +20,16 @@ namespace Search_Engine
         List<int> docsNumberList;
         List<int> docID;
         List<string> URLs;
-        Dictionary<string, int> SoundexResultsOneWord;
+        Dictionary<string, int> soundexResultsOneWord;
         Dictionary<string, List<int>> termsMap;
         string connectionString = "Data source=orcl; User Id=scott; Password=tiger;";
         OracleConnection conn;
         Dictionary<char, char> indexes;
-        List<List<string>> All_Keys;
-        List<string> Intersections;
-        bool ExactSearch;
+        List<List<string>> allKeys;
+        bool exactSearch;
         OracleCommand cmd;
         OracleDataReader dr;
-        bool SoundexOneWord;
+        bool soundexOneWord;
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -59,7 +58,6 @@ namespace Search_Engine
                     "three", "through", "throughout", "thru", "thus", "to", "together", "too", "top", "toward", "towards", "twelve", "twenty", "two", "un", "under", "until", "up", "upon", "us", "very", "via", "was", "we", "well", "were", "what",
                     "whatever", "when", "whence", "whenever", "where", "whereafter", "whereas", "whereby", "wherein", "whereupon", "wherever" }.ToList();
             indexes = new Dictionary<char, char>();
-            Intersections = new List<string>();
             indexes.Add('A', '0');
             indexes.Add('E', '0');
             indexes.Add('O', '0');
@@ -94,15 +92,15 @@ namespace Search_Engine
             docIDsList = new List<string>();
             docsNumberList = new List<int>();
             docID = new List<int>();
-            All_Keys = new List<List<string>>();
+            allKeys = new List<List<string>>();
             URLs = new List<string>();
-            SoundexResultsOneWord = new Dictionary<string, int>();
+            soundexResultsOneWord = new Dictionary<string, int>();
         }
 
         protected void Search_Click(object sender, EventArgs e)
         {
-            ExactSearch = false;
-            SoundexOneWord = false;
+            exactSearch = false;
+            soundexOneWord = false;
             SearchResultsText.Visible = false;
             searchResults.Visible = false;
             ListBox1.Visible = false;
@@ -145,7 +143,7 @@ namespace Search_Engine
             searchResults.Visible = true;
             // Know Search Type Multi word or exactSearch
             if (SearchWords.Text[0] == '\"' && SearchWords.Text[SearchWords.Text.Length - 1] == '\"')
-                ExactSearch = true;
+                exactSearch = true;
             // Apply Tokenization and linguistics algorithms .
             searchKeywords = TokenLinguistics(SearchWords.Text, true, true);
             // If Query One Word ... Ranking with Frequency
@@ -175,12 +173,12 @@ namespace Search_Engine
             {
                 searchKeywords = searchKeywordsSplited;
             }
-            // Apply Stemming
-            if (stemming)
-                searchKeywords = stemWord(searchKeywords);
             // Apply CaseFolding
             for (int i = 0; i < searchKeywords.Count; i++)
                 searchKeywords[i] = searchKeywords[i].ToLower();
+            // Apply Stemming
+            if (stemming)
+                searchKeywords = stemWord(searchKeywords);
             return searchKeywords;
         }
         // Calc Stemming To List of Words
@@ -241,10 +239,10 @@ namespace Search_Engine
                         URLs.Add(dr.GetValue(0).ToString());
                     dr.Close();
                 }
-                if (SoundexOneWord)
+                if (soundexOneWord)
                     for (int i = 0; i < URLs.Count; i++)
                     {
-                        SoundexResultsOneWord[URLs.ElementAt(i)] = dctTemp.ElementAt(i).Value;
+                        soundexResultsOneWord[URLs.ElementAt(i)] = dctTemp.ElementAt(i).Value;
                     }
                 else
                 {
@@ -259,7 +257,7 @@ namespace Search_Engine
         private void SearchTermBySoundex()
         {
             // Intialization
-            SoundexOneWord = true;
+            soundexOneWord = true;
             // Handle Ui
             // Get Soundex Of One Word
             string soundex = Soundex(searchKeywords.ElementAt(0));
@@ -280,7 +278,7 @@ namespace Search_Engine
                 foreach (string word in recomendationWords)
                     SearchOneWord(word);
                 Dictionary<string, int> Urls = new Dictionary<string, int>();
-                foreach (KeyValuePair<string, int> pair in SoundexResultsOneWord.OrderByDescending(key => key.Value))
+                foreach (KeyValuePair<string, int> pair in soundexResultsOneWord.OrderByDescending(key => key.Value))
                     Urls.Add(pair.Key, pair.Value);
                 // Pop ListBox
                 string results = "";
@@ -324,7 +322,7 @@ namespace Search_Engine
                     string docIDs = dr.GetValue(4).ToString();
                     docIDsList.AddRange(docIDs.Split(',').ToList());
                     // save ids of document has word in one index in LIST
-                    All_Keys.Add(docIDs.Split(',').ToList());
+                    allKeys.Add(docIDs.Split(',').ToList());
                     // get frequencies of this word in document and save in list
                     string frequencies = dr.GetValue(3).ToString();
                     frequenciesList.AddRange(frequencies.Split(',').ToList());
@@ -335,6 +333,11 @@ namespace Search_Engine
                 }
                 else
                 {
+                    docsNumberList.Clear();
+                    docIDsList.Clear();
+                    allKeys.Clear();
+                    frequenciesList.Clear();
+                    postionsList.Clear();
                     SpellingCorrection();
                     Handle = false;
                 }
@@ -342,9 +345,9 @@ namespace Search_Engine
             if (Handle)
             {
                 // get intersection of document_ids between query words
-                List<string> ShowIntersect = All_Keys[0];
-                for (int i = 0; i < All_Keys.Count - 1; i++)
-                    ShowIntersect = ShowIntersect.Intersect(All_Keys[i + 1]).ToList();
+                List<string> ShowIntersect = allKeys[0];
+                for (int i = 0; i < allKeys.Count - 1; i++)
+                    ShowIntersect = ShowIntersect.Intersect(allKeys[i + 1]).ToList();
                 // build maping between (Word+id) -> possitions in dictionary
                 int k = 0;
                 int size = 0;
@@ -396,7 +399,7 @@ namespace Search_Engine
             foreach (KeyValuePair<string, double> pair in distancemap.OrderBy(key => key.Value))
                 dctTemp.Add(pair.Key, pair.Value);
             // filter ids if type of searching is exact and result of urls is documents has distance one only .
-            if (ExactSearch && Words.Count > 1)
+            if (exactSearch && Words.Count > 1)
             {
                 Dictionary<string, double> dctTemp2 = new Dictionary<string, double>();
                 foreach (KeyValuePair<string, double> pair in dctTemp.Where(p => p.Value == 1))
@@ -417,8 +420,8 @@ namespace Search_Engine
                 }
                 // get ids that isn't intersect between words
                 List<List<string>> DffDocsIds = new List<List<string>>();
-                for (int i = 0; i < All_Keys.Count; i++)
-                    DffDocsIds.Add(All_Keys[i].Except(ids).ToList());
+                for (int i = 0; i < allKeys.Count; i++)
+                    DffDocsIds.Add(allKeys[i].Except(ids).ToList());
                 // get frequency of ids
                 Dictionary<string, double> IdsFrecdocs = new Dictionary<string, double>();
                 for (int i = 0; i < DffDocsIds.Count; i++)
@@ -518,7 +521,7 @@ namespace Search_Engine
                 {
                     i--;
                     dist.Add(p2 - pos1[i]);
-                    if (ExactSearch && (p2 - pos1[i]) == 1)
+                    if (exactSearch && (p2 - pos1[i]) == 1)
                         return 1;
                     i++;
                 }
@@ -682,7 +685,7 @@ namespace Search_Engine
                     }
                 }
                 // Handle Exact Search Query
-                if (ExactSearch)
+                if (exactSearch)
                 {
                     List<string> HandleExactSearch = new List<string>();
                     List<string> HandleExactSearch2 = new List<string>();
@@ -723,9 +726,10 @@ namespace Search_Engine
                 cmd.CommandType = CommandType.StoredProcedure;
                 cmd.Parameters.Add("word", OracleDbType.Varchar2, DBNull.Value, ParameterDirection.Input).Value = term;
                 cmd.Parameters.Add("documentDetails", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
-                OracleDataReader dr = cmd.ExecuteReader();
+                dr = cmd.ExecuteReader();
                 if (dr.Read())
                     TrueWords.Add(term);
+                dr.Close();
             }
             return TrueWords;
         }
