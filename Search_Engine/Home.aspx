@@ -37,7 +37,7 @@
             <br />
             <asp:TextBox ID="SearchWords" runat="server" TextMode="Search" Width="468px" CssClass="searchBox"></asp:TextBox>
             <asp:Button ID="Search" runat="server" Text="Search" OnClick="Search_Click" Width="82px" />
-            <asp:Button ID="btnReset" runat="server" Text="Reset" OnClick="resetFun" Width="82px" Height="29px" /><br />
+            <asp:Button ID="btnReset" runat="server" Text="Reset" OnClick="resetFun" Width="82px" /><br />
             <asp:RequiredFieldValidator ID="RequiredFieldValidator2" runat="server" ControlToValidate="SearchWords" ForeColor="Red" CssClass="searchBox" EnableClientScript="False" ValidateRequestMode="Enabled">Please enter text to search for</asp:RequiredFieldValidator>
             <asp:RadioButtonList ID="RadioButtonList1" runat="server" CssClass="radios" Width="164px">
                 <asp:ListItem Text="Soundex" Value="Soundex" />

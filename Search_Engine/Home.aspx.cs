@@ -101,7 +101,7 @@ namespace Search_Engine
         {
             exactSearch = false;
             soundexOneWord = false;
-            SearchResultsText.Visible = false;
+            SearchResultsText.Visible = true;
             searchResults.Visible = false;
             ListBox1.Visible = false;
             // Empty Query
@@ -135,7 +135,6 @@ namespace Search_Engine
         }
         private void startSearch()
         {
-            SearchResultsText.Visible = true;
             SearchResultsText.InnerText = "Search Results : ";
             ListBox1.Visible = false;
             searchResults.Visible = true;
@@ -257,42 +256,51 @@ namespace Search_Engine
             // Intialization
             soundexOneWord = true;
             // Handle Ui
-            // Get Soundex Of One Word
-            string soundex = Soundex(searchKeywords.ElementAt(0));
-            // Get Terms from Soundex (DB)
-            List<string> terms = GetTermsSoundex(soundex);
-            // Rank Terms with EditDistance
-            Dictionary<string, int> rankdic = RankingTermsSoundex(terms, searchKeywords.ElementAt(0));
-            if (rankdic.Count > 0)
+            List<string> searchKeyWords = TokenLinguistics(SearchWords.Text.ToString(), false, true);
+            //  Get True Words From Query
+            List<string> TrueWords = InInvertedIndex(searchKeyWords);
+            if (TrueWords.Count > 0)
             {
-                // Sort Dictionary 
-                Dictionary<string, int> dctTemp = new Dictionary<string, int>();
-                List<string> recomendationWords = new List<string>();
-                foreach (KeyValuePair<string, int> pair in rankdic.OrderBy(key => key.Value))
-                    dctTemp.Add(pair.Key, pair.Value);
-                // Filter And Get List of Recommendation Values
-                for (int i = 0; i < 3; i++)
-                    recomendationWords.Add(dctTemp.ElementAt(i).Key);
-                foreach (string word in recomendationWords)
-                    SearchOneWord(word);
-                Dictionary<string, int> Urls = new Dictionary<string, int>();
-                foreach (KeyValuePair<string, int> pair in soundexResultsOneWord.OrderByDescending(key => key.Value))
-                    Urls.Add(pair.Key, pair.Value);
-                // Pop ListBox
-                string results = "";
-                for (int i = 0; i < recomendationWords.Count; i++)
+                // Get Soundex Of One Word
+                string soundex = Soundex(searchKeywords.ElementAt(0));
+                // Get Terms from Soundex (DB)
+                List<string> terms = GetTermsSoundex(soundex);
+                // Rank Terms with EditDistance
+                Dictionary<string, int> rankdic = RankingTermsSoundex(terms, searchKeywords.ElementAt(0));
+                if (rankdic.Count > 0)
                 {
-                    if (i == recomendationWords.Count - 1)
-                        results += recomendationWords.ElementAt(i);
-                    else
-                        results += recomendationWords.ElementAt(i) + ", ";
+                    // Sort Dictionary 
+                    Dictionary<string, int> dctTemp = new Dictionary<string, int>();
+                    List<string> recomendationWords = new List<string>();
+                    foreach (KeyValuePair<string, int> pair in rankdic.OrderBy(key => key.Value))
+                        dctTemp.Add(pair.Key, pair.Value);
+                    // Filter And Get List of Recommendation Values
+                    for (int i = 0; i < dctTemp.Count; i++)
+                        recomendationWords.Add(dctTemp.ElementAt(i).Key);
+                    foreach (string word in recomendationWords)
+                        SearchOneWord(word);
+                    Dictionary<string, int> Urls = new Dictionary<string, int>();
+                    foreach (KeyValuePair<string, int> pair in soundexResultsOneWord.OrderByDescending(key => key.Value))
+                        Urls.Add(pair.Key, pair.Value);
+                    // Pop ListBox
+                    string results = "";
+                    for (int i = 0; i < recomendationWords.Count; i++)
+                    {
+                        if (i == recomendationWords.Count - 1)
+                            results += recomendationWords.ElementAt(i);
+                        else
+                            results += recomendationWords.ElementAt(i) + ", ";
+                    }
+                    SearchResultsText.InnerText = "Search Results Of : " + results;
+                    searchResults.Visible = true;
+                    searchResults.DataSource = Urls.Keys.ToList();
+                    searchResults.DataBind();
+                    RadioButtonList1.ClearSelection();
                 }
-                SearchResultsText.InnerText = "Search Results Of : " + results;
-                SearchResultsText.Visible = true;
-                searchResults.Visible = true;
-                searchResults.DataSource = Urls.Keys.ToList();
-                searchResults.DataBind();
-                RadioButtonList1.ClearSelection();
+                else
+                {
+                    SearchResultsText.InnerText = "Your Soundex Search - " + SearchWords.Text + " - did not match any documents. You Should Use Spelling Correction";
+                }
             }
             else
             {
@@ -334,7 +342,7 @@ namespace Search_Engine
                     foreach (KeyValuePair<string, int> pair in dic.OrderBy(key => key.Value))
                         Terms.Add(pair.Key, pair.Value);
                     List<string> SoundexsEachTerms = new List<string>();
-                    for (int i = 0; i < 3; i++)
+                    for (int i = 0; i < Terms.Count(); i++)
                     {
                         SoundexsEachTerms.Add(Terms.Keys.ElementAt(i));
                     }
@@ -347,7 +355,6 @@ namespace Search_Engine
                     // cross join the current result with each member of the next list
                     lstRes = lstRes.SelectMany(o => list.Select(s => o + ' ' + s));
                 }
-                SearchResultsText.Visible = true;
                 ListBox1.Visible = true;
                 ListBox1.DataSource = lstRes;
                 ListBox1.DataBind();
@@ -455,9 +462,11 @@ namespace Search_Engine
             if (exactSearch && Words.Count > 1)
             {
                 Dictionary<string, double> dctTemp2 = new Dictionary<string, double>();
-                foreach (KeyValuePair<string, double> pair in dctTemp.Where(p => p.Value == 1))
+                foreach (KeyValuePair<string, double> pair in dctTemp.Where(p => p.Value / 200000 >= 1))
                     dctTemp2.Add(pair.Key, pair.Value);
-                dctTemp = dctTemp2;
+                dctTemp = new Dictionary<string, double>();
+                foreach (KeyValuePair<string, double> pair in dctTemp2.OrderByDescending(key => key.Value))
+                    dctTemp.Add(pair.Key, pair.Value);
             }
             else
             {
@@ -484,26 +493,29 @@ namespace Search_Engine
                 foreach (KeyValuePair<string, double> pair in IdsFrecdocs.OrderByDescending(key => key.Value))
                     dctTemp.Add(pair.Key, pair.Value);
             }
-            // get Url by ids
-            foreach (var id in dctTemp.Keys)
-            {
-                OracleCommand cmd;
-                cmd = new OracleCommand();
-                cmd.Connection = conn;
-                cmd.CommandText = "getDocURL";
-                cmd.CommandType = CommandType.StoredProcedure;
-                cmd.Parameters.Add("docID", OracleDbType.Int32, DBNull.Value, ParameterDirection.Input).Value = id;
-                cmd.Parameters.Add("documentDetails", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
-                OracleDataReader dr = cmd.ExecuteReader();
-                while (dr.Read())
-                    URLs.Add(dr.GetValue(0).ToString());
-                dr.Close();
-            }
             if (dctTemp.Count == 0)
                 SearchResultsText.InnerText = "Your search - " + SearchWords.Text + " - did not match any documents.";
-            // show Urls 
-            searchResults.DataSource = URLs;
-            searchResults.DataBind();
+            else
+            {
+                // get Url by ids
+                foreach (var id in dctTemp.Keys)
+                {
+                    OracleCommand cmd;
+                    cmd = new OracleCommand();
+                    cmd.Connection = conn;
+                    cmd.CommandText = "getDocURL";
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.Parameters.Add("docID", OracleDbType.Int32, DBNull.Value, ParameterDirection.Input).Value = id;
+                    cmd.Parameters.Add("documentDetails", OracleDbType.RefCursor, DBNull.Value, ParameterDirection.Output);
+                    OracleDataReader dr = cmd.ExecuteReader();
+                    while (dr.Read())
+                        URLs.Add(dr.GetValue(0).ToString());
+                    dr.Close();
+                }
+                // show Urls 
+                searchResults.DataSource = URLs;
+                searchResults.DataBind();
+            }
         }
         // Get Four Chars is soundex for any term .
         private string Soundex(string term)
@@ -560,10 +572,11 @@ namespace Search_Engine
             List<int> dist = new List<int>();
             int i = 0;
             double avgdist = 0;
+            int FreExactcounter = 0;
+
             foreach (var p2 in pos2)
             {
                 bool found = false;
-
                 while (i < pos1.Count && pos1[i] < p2)
                 {
                     i++;
@@ -574,10 +587,12 @@ namespace Search_Engine
                     i--;
                     dist.Add(p2 - pos1[i]);
                     if (exactSearch && (p2 - pos1[i]) == 1)
-                        return 1;
+                        FreExactcounter++;
                     i++;
                 }
             }
+            if (exactSearch)
+                return 200000 * FreExactcounter;
             foreach (var dis in dist)
                 avgdist += dis;
             return avgdist / dist.Count;
@@ -879,6 +894,8 @@ namespace Search_Engine
 
         protected void resetFun(object sender, EventArgs e)
         {
+            SearchWords.Text = "";
+            RequiredFieldValidator2.Visible = false;
             RadioButtonList1.ClearSelection();
         }
     }
