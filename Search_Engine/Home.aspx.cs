@@ -157,24 +157,26 @@ namespace Search_Engine
                     "{","}", "^", "-=","<","<=","<>","=","==",">",">=","?","@", "|=","*=","[","]","|","~","~="/*,"`"*/,":","&=","/=","\r\n","\r","\n","\\","\"","?","ـ","©","؟","ُ"
                     ,"ال","ا","آ","ٱ","إ","أ","ل","ك","ط","ظ","م","ء","ق","خ","ع","ف","ج","ح","ش","س","غ","ص","ذ","د","ز","ر","ء","ؤ","ّ",
                     "و","ض","ب","ت","ث","ن","ي","ئ","ى","ه","ة"}, StringSplitOptions.RemoveEmptyEntries).ToList();
-            // Remove Stop Words
-            if (remstopwords)
-            {
-                for (int i = 0; i < searchKeywordsSplited.Count; i++)
-                    if (!stopWords.Contains(searchKeywordsSplited[i]))
-                        searchKeywords.Add(searchKeywordsSplited.ElementAt(i));
-            }
-            else
-            {
-                searchKeywords = searchKeywordsSplited;
-            }
+            
             // Apply CaseFolding
-            for (int i = 0; i < searchKeywords.Count; i++)
-                searchKeywords[i] = searchKeywords[i].ToLower();
+            for (int i = 0; i < searchKeywordsSplited.Count; i++)
+                searchKeywords.Add(searchKeywordsSplited[i].ToLower());
             // Apply Stemming
             if (stemming)
                 searchKeywords = stemWord(searchKeywords);
-            return searchKeywords;
+            List<string> Results = new List<string>();
+            // Remove Stop Words
+            if (remstopwords)
+            {
+                for (int i = 0; i < searchKeywords.Count; i++)
+                    if (!stopWords.Contains(searchKeywords[i]))
+                        Results.Add(searchKeywords.ElementAt(i));
+            }
+            else {
+                Results = searchKeywords;
+
+            }
+            return Results;
         }
         // Calc Stemming To List of Words
         private List<String> stemWord(List<string> index)
