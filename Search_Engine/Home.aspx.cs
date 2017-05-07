@@ -136,13 +136,11 @@ namespace Search_Engine
         private void startSearch()
         {
             SearchResultsText.InnerText = "Search Results : ";
-            ListBox1.Visible = false;
-            searchResults.Visible = true;
-            // Know Search Type Multi word or exactSearch
-            if (SearchWords.Text[0] == '\"' && SearchWords.Text[SearchWords.Text.Length - 1] == '\"')
-                exactSearch = true;
             // Apply Tokenization and linguistics algorithms .
             searchKeywords = TokenLinguistics(SearchWords.Text, true, true);
+            // Know Search Type Multi word or exactSearch
+            if (SearchWords.Text[0] == '\"' && SearchWords.Text[SearchWords.Text.Length - 1] == '\"' && searchKeywords.Count > 1)
+                exactSearch = true;
             // If Query One Word ... Ranking with Frequency
             if (searchKeywords.Count == 1)
                 SearchOneWord(searchKeywords[0]);
@@ -239,16 +237,20 @@ namespace Search_Engine
                 if (soundexOneWord)
                     for (int i = 0; i < URLs.Count; i++)
                     {
-                        soundexResultsOneWord[URLs.ElementAt(i)] = dctTemp.ElementAt(i).Value;
+                        if(soundexResultsOneWord.Keys.Contains(URLs.ElementAt(i)))
+                        soundexResultsOneWord[URLs.ElementAt(i)] += dctTemp.ElementAt(i).Value;
+                        else
+                            soundexResultsOneWord[URLs.ElementAt(i)] = dctTemp.ElementAt(i).Value;
                     }
                 else
                 {
-                    // Show URLS
+                    // Show 
+                    searchResults.Visible = true;
                     searchResults.DataSource = URLs;
                     searchResults.DataBind();
                 }
             }
-            else
+            else if(!soundexOneWord)
                 SpellingCorrection();
         }
         private void SearchTermBySoundex()
@@ -266,7 +268,7 @@ namespace Search_Engine
                 // Get Terms from Soundex (DB)
                 List<string> terms = GetTermsSoundex(soundex);
                 // Rank Terms with EditDistance
-                Dictionary<string, int> rankdic = RankingTermsSoundex(terms, searchKeywords.ElementAt(0));
+                Dictionary<string, int> rankdic = RankingTermsSoundex(terms , searchKeywords.ElementAt(0));
                 if (rankdic.Count > 0)
                 {
                     // Sort Dictionary 
@@ -275,10 +277,16 @@ namespace Search_Engine
                     foreach (KeyValuePair<string, int> pair in rankdic.OrderBy(key => key.Value))
                         dctTemp.Add(pair.Key, pair.Value);
                     // Filter And Get List of Recommendation Values
-                    for (int i = 0; i < dctTemp.Count; i++)
+                    for (int i = 0; i < 3/*dctTemp.Count*/; i++)
                         recomendationWords.Add(dctTemp.ElementAt(i).Key);
+                    List<string> Stemmers = new List<string>();
                     foreach (string word in recomendationWords)
+                        Stemmers.Add(word);
+                    Stemmers = stemWord(Stemmers);
+
+                    foreach (string word in Stemmers)
                         SearchOneWord(word);
+
                     Dictionary<string, int> Urls = new Dictionary<string, int>();
                     foreach (KeyValuePair<string, int> pair in soundexResultsOneWord.OrderByDescending(key => key.Value))
                         Urls.Add(pair.Key, pair.Value);
@@ -513,6 +521,7 @@ namespace Search_Engine
                     dr.Close();
                 }
                 // show Urls 
+                searchResults.Visible = true;
                 searchResults.DataSource = URLs;
                 searchResults.DataBind();
             }
@@ -773,14 +782,13 @@ namespace Search_Engine
                     // Handle Ui and show Recomendations 
 
                     ListBox1.Visible = true;
-                    searchResults.Visible = false;
                     ListBox1.DataSource = lstRes;
                     ListBox1.DataBind();
 
                 }
                 else
                 {
-                    SearchResultsText.InnerText = "No spelling correction for this word";
+                    SearchResultsText.InnerText = "No Words Semilar to This Word !! ";
                     ListBox1.Visible = false;
                     searchResults.Visible = false;
                 }
