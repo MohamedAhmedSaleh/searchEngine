@@ -618,7 +618,7 @@ namespace Search_Engine
         private void SpellingCorrection()
         {
             // Handle UI
-            SearchResultsText.InnerText = "Did you Mean : ";
+            SearchResultsText.InnerText = "Did You Mean : ";
             // Tokenize Query without stemming and stop Removals
             List<string> searchKeyWords = TokenLinguistics(SearchWords.Text.ToString(), false, false);
             //  Get True Words From Query
